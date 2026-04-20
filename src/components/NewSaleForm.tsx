@@ -59,7 +59,9 @@ interface NewSaleFormProps {
 }
 
 import { useOfflineSync } from '../lib/useOfflineSync';
-import { Wifi, WifiOff, RefreshCcw, Database } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCcw, Database, Printer } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import { SaleTicket } from './SaleTicket';
 
 export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -67,8 +69,14 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<number | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { isOnline, saveOrder } = useOfflineSync();
+  const ticketRef = React.useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: ticketRef,
+  });
 
   // Filters
   const filteredProducts = useMemo(() => {
@@ -126,15 +134,59 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
       
       setLastSavedId(id as number);
 
-      // We give a small delay to show the success state
+      // Transition to success state
       setTimeout(() => {
-        onSuccess({ id, status: isOnline ? 'synced' : 'pending' });
+        setIsFinishing(false);
+        setShowSuccess(true);
       }, 1500);
     } catch (error) {
       console.error('Error al guardar pedido:', error);
       setIsFinishing(false);
     }
   };
+
+  if (showSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 animate-in zoom-in-95 duration-500 bg-editorial-bg">
+        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-green-100">
+          <CheckCircle2 className="text-white" size={40} />
+        </div>
+        <h2 className="text-3xl font-serif italic text-center mb-2">Venta Completada</h2>
+        <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mb-12">Referencia: #{lastSavedId}</p>
+        
+        <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
+          <button 
+            onClick={() => handlePrint()}
+            className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all"
+          >
+            <Printer size={18} /> IMPRIMIR TICKET
+          </button>
+          <button 
+            onClick={() => onSuccess({})}
+            className="w-full py-5 border border-editorial-ink text-editorial-ink text-[10px] font-bold uppercase tracking-[0.3em] active:scale-95 transition-all"
+          >
+            VOLVER AL INICIO
+          </button>
+        </div>
+
+        {/* Hidden ticket for printing */}
+        <div className="hidden">
+           {selectedCustomer && (
+             <SaleTicket 
+               ref={ticketRef} 
+               order={{ 
+                 id: lastSavedId || '...', 
+                 customerName: selectedCustomer.name, 
+                 items: cart, 
+                 total, 
+                 timestamp: new Date().toISOString() 
+               }} 
+             />
+           )}
+        </div>
+      </div>
+    );
+  }
 
   if (isFinishing) {
     return (

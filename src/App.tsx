@@ -14,7 +14,14 @@ import {
   MapPin,
   MoreVertical,
   ChevronRight,
-  Filter
+  Filter,
+  ClipboardCheck,
+  Wifi,
+  WifiOff,
+  RefreshCcw,
+  Box,
+  Truck as TruckIcon,
+  Settings
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -96,13 +103,13 @@ const SALES_DATA = [
   { name: 'Dom', ventas: 3490 },
 ];
 
+import RouteSettlement from './components/RouteSettlement';
 import NewSaleForm from './components/NewSaleForm';
-
 import { useOfflineSync } from './lib/useOfflineSync';
-import { Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminModules';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers'>('dashboard');
   const { isOnline, isSyncing, pendingCount } = useOfflineSync();
 
   return (
@@ -118,7 +125,8 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="flex-1 p-6 space-y-4">
+        <nav className="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar">
+          <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 px-4 mt-2">Operación</p>
           <NavItem 
             icon={<LayoutDashboard size={18} />} 
             label="TABLERO" 
@@ -126,22 +134,42 @@ export default function App() {
             onClick={() => setActiveTab('dashboard')} 
           />
           <NavItem 
-            icon={<Truck size={18} />} 
-            label="FLOTA" 
+            icon={<ShoppingCart size={18} />} 
+            label="NUEVA VENTA" 
+            active={activeTab === 'sale'} 
+            onClick={() => setActiveTab('sale')} 
+          />
+          <NavItem 
+            icon={<ClipboardCheck size={18} />} 
+            label="LIQUIDACIÓN" 
+            active={activeTab === 'settlement'} 
+            onClick={() => setActiveTab('settlement')} 
+          />
+
+          <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 px-4 mt-6">Administración</p>
+          <NavItem 
+            icon={<Box size={18} />} 
+            label="PRODUCTOS" 
+            active={activeTab === 'products'} 
+            onClick={() => setActiveTab('products')} 
+          />
+          <NavItem 
+            icon={<Users size={18} />} 
+            label="CLIENTES" 
+            active={activeTab === 'customers'} 
+            onClick={() => setActiveTab('customers')} 
+          />
+          <NavItem 
+            icon={<TruckIcon size={18} />} 
+            label="FLOTILLA" 
             active={activeTab === 'fleet'} 
             onClick={() => setActiveTab('fleet')} 
           />
           <NavItem 
             icon={<Package size={18} />} 
-            label="INVENTARIO" 
+            label="BODEGA" 
             active={activeTab === 'inventory'} 
             onClick={() => setActiveTab('inventory')} 
-          />
-          <NavItem 
-            icon={<ShoppingCart size={18} />} 
-            label="NUEVA VENTA" 
-            active={activeTab === 'sale'} 
-            onClick={() => setActiveTab('sale')} 
           />
         </nav>
 
@@ -165,11 +193,13 @@ export default function App() {
             <div>
               <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
                 {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
-                 activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 'CADENA DE SUMINISTRO'}
+                 activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 
+                 activeTab === 'inventory' ? 'CADENA DE SUMINISTRO' : 'CIERRE DE OPERACIONES'}
               </p>
               <h1 className="text-5xl font-serif italic leading-none">
                 {activeTab === 'dashboard' ? 'Resumen Ejecutivo' : 
-                 activeTab === 'fleet' ? 'Gestión de Unidades' : 'Control de Stock'}
+                 activeTab === 'fleet' ? 'Gestión de Unidades' : 
+                 activeTab === 'inventory' ? 'Control de Stock' : 'Liquidación de Ruta'}
               </h1>
             </div>
             <div className="flex items-center gap-6">
@@ -206,8 +236,10 @@ export default function App() {
 
         <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
           {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'fleet' && <FleetView />}
+          {activeTab === 'fleet' && <VehicleAdmin />}
           {activeTab === 'inventory' && <InventoryView />}
+          {activeTab === 'products' && <ProductAdmin />}
+          {activeTab === 'customers' && <CustomerAdmin />}
           {activeTab === 'sale' && (
             <NewSaleForm 
               onCancel={() => setActiveTab('dashboard')} 
@@ -217,6 +249,7 @@ export default function App() {
               }} 
             />
           )}
+          {activeTab === 'settlement' && <RouteSettlement />}
         </div>
 
         {activeTab !== 'sale' && (
