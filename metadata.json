@@ -1,6 +1,6 @@
 {
   "name": "Luna y Sol",
   "description": "Sistema de gestión de ventas en ruta con seguimiento de inventario móvil y auditoría técnica.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }

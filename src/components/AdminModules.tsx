@@ -93,34 +93,59 @@ export function ProductAdmin() {
         />
       </div>
 
-      <div className="bg-white border border-editorial-ink">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-editorial-ink bg-stone-50">
-              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">PRODUCTO</th>
-              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">CATEGORÍA</th>
-              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">UNIDAD</th>
-              <th className="p-4 text-[10px] font-bold uppercase tracking-widest text-right">PRECIO</th>
-              <th className="p-4 text-[10px] font-bold uppercase tracking-widest text-center">ACCIONES</th>
-            </tr>
-          </thead>
-          <tbody className="text-xs">
-            {filtered.map(p => (
-              <tr key={p.id} className="border-b border-editorial-ink/5 hover:bg-stone-50 transition-colors">
-                <td className="p-4 font-bold uppercase tracking-wider">{p.name}</td>
-                <td className="p-4 italic opacity-60">{p.category}</td>
-                <td className="p-4 font-mono">{p.unit}</td>
-                <td className="p-4 text-right font-serif italic text-lg">${p.price.toFixed(2)}</td>
-                <td className="p-4">
-                  <div className="flex justify-center gap-4">
-                    <button onClick={() => setIsEditing(p)} className="hover:text-amber-600"><Edit2 size={14} /></button>
-                    <button onClick={() => setProducts(products.filter(item => item.id !== p.id))} className="hover:text-red-600"><Trash2 size={14} /></button>
-                  </div>
-                </td>
+      <div className="bg-white border border-editorial-ink overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-editorial-ink bg-stone-50">
+                <th className="p-4 text-[10px] font-bold uppercase tracking-widest">PRODUCTO</th>
+                <th className="p-4 text-[10px] font-bold uppercase tracking-widest">CATEGORÍA</th>
+                <th className="p-4 text-[10px] font-bold uppercase tracking-widest">UNIDAD</th>
+                <th className="p-4 text-[10px] font-bold uppercase tracking-widest text-right">PRECIO</th>
+                <th className="p-4 text-[10px] font-bold uppercase tracking-widest text-center">ACCIONES</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="text-xs">
+              {filtered.map(p => (
+                <tr key={p.id} className="border-b border-editorial-ink/5 hover:bg-stone-50 transition-colors">
+                  <td className="p-4 font-bold uppercase tracking-wider">{p.name}</td>
+                  <td className="p-4 italic opacity-60">{p.category}</td>
+                  <td className="p-4 font-mono">{p.unit}</td>
+                  <td className="p-4 text-right font-serif italic text-lg">${p.price.toFixed(2)}</td>
+                  <td className="p-4">
+                    <div className="flex justify-center gap-4">
+                      <button onClick={() => setIsEditing(p)} className="hover:text-amber-600"><Edit2 size={14} /></button>
+                      <button onClick={() => setProducts(products.filter(item => item.id !== p.id))} className="hover:text-red-600"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-editorial-ink/10">
+          {filtered.map(p => (
+            <div key={p.id} className="p-6 space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider">{p.name}</p>
+                  <p className="text-[10px] italic opacity-60">{p.category}</p>
+                </div>
+                <p className="text-lg font-serif italic font-bold">${p.price.toFixed(2)}</p>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-[10px] font-mono opacity-40 uppercase">Unidad: {p.unit}</span>
+                <div className="flex gap-4">
+                  <button onClick={() => setIsEditing(p)} className="p-2 border border-editorial-ink/20"><Edit2 size={14} /></button>
+                  <button onClick={() => setProducts(products.filter(item => item.id !== p.id))} className="p-2 border border-red-100 text-red-600"><Trash2 size={14} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {isEditing && (

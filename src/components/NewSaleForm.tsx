@@ -33,6 +33,8 @@ interface Customer {
   name: string;
   address: string;
   taxId: string;
+  lat: number;
+  lng: number;
 }
 
 interface CartItem extends Product {
@@ -41,9 +43,9 @@ interface CartItem extends Product {
 
 // Mock Data for the Driver View
 const MOCK_CUSTOMERS: Customer[] = [
-  { id: 'c1', name: 'Tienda La Bendición', address: 'Calle 5 #10-20', taxId: '900123456-1' },
-  { id: 'c2', name: 'Minimarket Luna', address: 'Av. Siempre Viva 742', taxId: '900987654-2' },
-  { id: 'c3', name: 'Restaurante El Gourmet', address: 'Carrera 15 #45-12', taxId: '800555444-3' },
+  { id: 'c1', name: 'Tienda La Bendición', address: 'Calle 5 #10-20', taxId: '900123456-1', lat: 19.4326, lng: -99.1332 },
+  { id: 'c2', name: 'Minimarket Luna', address: 'Av. Siempre Viva 742', taxId: '900987654-2', lat: 19.4350, lng: -99.1412 },
+  { id: 'c3', name: 'Restaurante El Gourmet', address: 'Carrera 15 #45-12', taxId: '800555444-3', lat: 19.4270, lng: -99.1250 },
 ];
 
 const MOCK_PRODUCTS: Product[] = [
@@ -59,7 +61,7 @@ interface NewSaleFormProps {
 }
 
 import { useOfflineSync } from '../lib/useOfflineSync';
-import { Wifi, WifiOff, RefreshCcw, Database, Printer } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCcw, Database, Printer, MapPin, Navigation, AlertTriangle } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { SaleTicket } from './SaleTicket';
 
@@ -70,6 +72,9 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [isFinishing, setIsFinishing] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [currentCoords, setCurrentCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [distanceWarning, setDistanceWarning] = useState<string | null>(null);
 
   const { isOnline, saveOrder } = useOfflineSync();
   const ticketRef = React.useRef<HTMLDivElement>(null);
@@ -77,6 +82,45 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const handlePrint = useReactToPrint({
     contentRef: ticketRef,
   });
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const R = 6371e3;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const captureLocation = () => {
+    if (!selectedCustomer) return;
+    setIsLocating(true);
+    setDistanceWarning(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentCoords({ lat: latitude, lng: longitude });
+        
+        const dist = calculateDistance(latitude, longitude, selectedCustomer.lat, selectedCustomer.lng);
+        if (dist > 200) {
+          setDistanceWarning(`Estás a ${Math.round(dist)} metros del cliente. Ubicación no coincide.`);
+        } else {
+          setDistanceWarning(null);
+        }
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error('Error de ubicación:', error);
+        setIsLocating(false);
+        alert('No se pudo obtener la ubicación. Por favor activa el GPS.');
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   // Filters
   const filteredProducts = useMemo(() => {
@@ -130,6 +174,8 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
         customerName: selectedCustomer.name,
         items: cart,
         total,
+        coords: currentCoords,
+        distanceWarn: distanceWarning
       });
       
       setLastSavedId(id as number);
@@ -234,10 +280,35 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {/* Customer Selector */}
-        <section>
-          <h3 className="text-xs font-bold uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <Users size={14} className="opacity-40" /> Cliente
-          </h3>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-[0.3em] flex items-center gap-2">
+              <Users size={14} className="opacity-40" /> Cliente
+            </h3>
+            {selectedCustomer && (
+              <button 
+                onClick={captureLocation}
+                disabled={isLocating}
+                className={cn(
+                  "flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-all",
+                  currentCoords ? "bg-stone-50 border-stone-300 text-stone-600" : "bg-editorial-ink text-white"
+                )}
+              >
+                {isLocating ? <RefreshCcw size={12} className="animate-spin" /> : currentCoords ? <Navigation size={12} /> : <MapPin size={12} />}
+                {currentCoords ? 'UBICACIÓN REGISTRADA' : 'REGISTRAR VISITA'}
+              </button>
+            )}
+          </div>
+          
+          {distanceWarning && (
+            <div className="bg-red-50 border border-red-200 p-3 flex items-start gap-3 animate-in slide-in-from-top-2">
+              <AlertTriangle size={16} className="text-red-500 shrink-0" />
+              <p className="text-[10px] font-bold text-red-700 uppercase leading-tight tracking-wider">
+                ADVERTENCIA: {distanceWarning}
+              </p>
+            </div>
+          )}
+
           {!selectedCustomer ? (
             <div className="space-y-3">
               {MOCK_CUSTOMERS.map(c => (

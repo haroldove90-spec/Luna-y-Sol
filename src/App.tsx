@@ -21,8 +21,15 @@ import {
   RefreshCcw,
   Box,
   Truck as TruckIcon,
-  Settings
+  Settings,
+  Menu,
+  X as CloseIcon,
+  DollarSign,
+  AlertTriangle,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
+import { LoadPrediction } from './components/LoadPrediction';
 import { 
   BarChart, 
   Bar, 
@@ -110,19 +117,39 @@ import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminMod
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers'>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isOnline, isSyncing, pendingCount } = useOfflineSync();
 
+  const handleNavClick = (tab: any) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
+
   return (
-    <div className="flex h-screen bg-editorial-bg text-editorial-ink font-sans overflow-hidden border-8 border-white box-border">
+    <div className="flex h-screen bg-editorial-bg text-editorial-ink font-sans overflow-hidden md:border-8 border-white box-border">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-editorial-ink/40 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-editorial-bg border-r border-editorial-ink flex flex-col shrink-0">
-        <div className="p-10 border-b border-editorial-ink">
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 bg-editorial-bg border-r border-editorial-ink flex flex-col shrink-0 transition-transform duration-300 md:relative md:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-10 border-b border-editorial-ink flex justify-between items-center">
           <div className="space-y-1">
             <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60">Sistema v1.0.4</p>
             <div className="flex items-center gap-2">
               <span className="text-3xl font-serif italic font-medium">Luna y Sol</span>
             </div>
           </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2">
+            <CloseIcon size={20} />
+          </button>
         </div>
 
         <nav className="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar">
@@ -131,19 +158,19 @@ export default function App() {
             icon={<LayoutDashboard size={18} />} 
             label="TABLERO" 
             active={activeTab === 'dashboard'} 
-            onClick={() => setActiveTab('dashboard')} 
+            onClick={() => handleNavClick('dashboard')} 
           />
           <NavItem 
             icon={<ShoppingCart size={18} />} 
             label="NUEVA VENTA" 
             active={activeTab === 'sale'} 
-            onClick={() => setActiveTab('sale')} 
+            onClick={() => handleNavClick('sale')} 
           />
           <NavItem 
             icon={<ClipboardCheck size={18} />} 
             label="LIQUIDACIÓN" 
             active={activeTab === 'settlement'} 
-            onClick={() => setActiveTab('settlement')} 
+            onClick={() => handleNavClick('settlement')} 
           />
 
           <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 px-4 mt-6">Administración</p>
@@ -151,25 +178,25 @@ export default function App() {
             icon={<Box size={18} />} 
             label="PRODUCTOS" 
             active={activeTab === 'products'} 
-            onClick={() => setActiveTab('products')} 
+            onClick={() => handleNavClick('products')} 
           />
           <NavItem 
             icon={<Users size={18} />} 
             label="CLIENTES" 
             active={activeTab === 'customers'} 
-            onClick={() => setActiveTab('customers')} 
+            onClick={() => handleNavClick('customers')} 
           />
           <NavItem 
             icon={<TruckIcon size={18} />} 
             label="FLOTILLA" 
             active={activeTab === 'fleet'} 
-            onClick={() => setActiveTab('fleet')} 
+            onClick={() => handleNavClick('fleet')} 
           />
           <NavItem 
             icon={<Package size={18} />} 
             label="BODEGA" 
             active={activeTab === 'inventory'} 
-            onClick={() => setActiveTab('inventory')} 
+            onClick={() => handleNavClick('inventory')} 
           />
         </nav>
 
@@ -187,22 +214,36 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto flex flex-col">
+      <main className="flex-1 overflow-y-auto flex flex-col relative">
         {activeTab !== 'sale' && (
-          <header className="h-24 bg-editorial-bg border-b border-editorial-ink flex items-end justify-between px-10 pb-6 sticky top-0 z-10 transition-all">
-            <div>
-              <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
-                {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
-                 activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 
-                 activeTab === 'inventory' ? 'CADENA DE SUMINISTRO' : 'CIERRE DE OPERACIONES'}
-              </p>
-              <h1 className="text-5xl font-serif italic leading-none">
-                {activeTab === 'dashboard' ? 'Resumen Ejecutivo' : 
-                 activeTab === 'fleet' ? 'Gestión de Unidades' : 
-                 activeTab === 'inventory' ? 'Control de Stock' : 'Liquidación de Ruta'}
-              </h1>
+          <header className="min-h-[6rem] md:h-28 bg-editorial-bg border-b border-editorial-ink flex flex-col md:flex-row items-start md:items-end justify-between px-6 md:px-10 pb-6 pt-6 md:pt-0 sticky top-0 z-10 transition-all gap-4">
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <button 
+                onClick={() => setIsSidebarOpen(true)} 
+                className="md:hidden p-2 -ml-2 hover:bg-stone-100 rounded-full transition-colors"
+              >
+                <Menu size={24} />
+              </button>
+              <div>
+                <p className="text-[9px] md:text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
+                  {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
+                   activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 
+                   activeTab === 'inventory' ? 'CADENA DE SUMINISTRO' : 
+                   activeTab === 'products' ? 'SISTEMA CENTRAL' :
+                   activeTab === 'customers' ? 'ACTIVOS COMERCIALES' :
+                   'CIERRE DE OPERACIONES'}
+                </p>
+                <h1 className="text-3xl md:text-5xl font-serif italic leading-none whitespace-nowrap">
+                  {activeTab === 'dashboard' ? 'Dashboard Ejecutivo' : 
+                   activeTab === 'fleet' ? 'Gestión de Unidades' : 
+                   activeTab === 'inventory' ? 'Control de Stock' : 
+                   activeTab === 'products' ? 'Catálogo Maestro' :
+                   activeTab === 'customers' ? 'Directorio Clientes' :
+                   'Liquidación de Ruta'}
+                </h1>
+              </div>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
               {/* Sync Indicator */}
               <div className="flex items-center gap-3 px-3 py-1.5 border border-editorial-ink/10 bg-white/50">
                 {isOnline ? (
@@ -308,46 +349,78 @@ function StatCard({ title, value, change, trend, icon }: { title: string, value:
 }
 
 function DashboardView() {
+  const exportToCSV = () => {
+    const headers = ['Fecha', 'Ventas', 'Pedidos', 'Efectivo'];
+    const data = [
+      ['2024-04-20', '12450', '142', '8230'],
+      ...SALES_DATA.map(d => [d.name, d.ventas, '20', (d.ventas * 0.7).toFixed(2)])
+    ];
+    
+    const csvContent = [headers.join(','), ...data.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reporte_luna_y_sol_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+    <div className="space-y-12 animate-in fade-in duration-700 pb-12">
+      <div className="flex justify-between items-center bg-stone-50 border border-editorial-ink/10 p-6 rounded-sm">
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-40">Herramientas de Control</h4>
+          <p className="text-xl font-serif italic">Operaciones del Ciclo Actual</p>
+        </div>
+        <button 
+          onClick={exportToCSV}
+          className="flex items-center gap-3 px-6 py-3 bg-white border border-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors"
+        >
+          <FileSpreadsheet size={16} /> EXPORTAR REPORTE (.CSV)
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         <StatCard 
-          title="Ventas Diarias" 
+          title="Ventas de Hoy" 
           value="$12,450" 
           change="+12.5%" 
           trend="up" 
           icon={<ShoppingCart size={20} />} 
         />
         <StatCard 
-          title="Pedidos" 
+          title="Efectivo a Recibir" 
+          value="$8,230" 
+          change="Auditando" 
+          trend="up" 
+          icon={<DollarSign size={20} />} 
+        />
+        <StatCard 
+          title="Pedidos Totales" 
           value="142" 
           change="+4.3%" 
           trend="up" 
           icon={<ClipboardList size={20} />} 
         />
         <StatCard 
-          title="En Camiones" 
-          value="4,580" 
-          change="-2.1%" 
+          title="Alerta de Stock" 
+          value="3 Camiones" 
+          change="Crítico" 
           trend="down" 
-          icon={<Package size={20} />} 
-        />
-        <StatCard 
-          title="Eficiencia" 
-          value="94.2%" 
-          change="+1.2%" 
-          trend="up" 
-          icon={<TrendingUp size={20} />} 
+          icon={<AlertTriangle size={20} className="text-red-600" />} 
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div className="lg:col-span-8 overflow-hidden">
           <div className="mb-6 flex justify-between items-end border-b border-editorial-ink/10 pb-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.3em]">Métrica de Desempeño</h3>
-            <p className="text-[10px] font-mono opacity-40">AGREGADO_DELTA_SEMANAL</p>
+            <h3 className="text-xs font-bold uppercase tracking-[0.3em]">Producto Más Vendido</h3>
+            <p className="text-[10px] font-mono opacity-40">TENDENCIA_DIARIA</p>
           </div>
-          <div className="h-[350px] w-full bg-white p-8 border border-editorial-ink/5">
+          <div className="h-[300px] md:h-[400px] w-full bg-white p-4 md:p-8 border border-editorial-ink/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={SALES_DATA}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#1A1A1A', fontSize: 10, fontWeight: 700 }} />
@@ -358,7 +431,7 @@ function DashboardView() {
                 />
                 <Bar dataKey="ventas" radius={0}>
                   {SALES_DATA.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? '#1A1A1A' : '#D1D1D1'} />
+                    <Cell key={`cell-${index}`} fill={index === SALES_DATA.length - 1 ? '#1A1A1A' : '#D1D1D1'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -368,29 +441,31 @@ function DashboardView() {
 
         <div className="lg:col-span-4 flex flex-col">
           <div className="mb-6 border-l-2 border-editorial-ink pl-6">
-            <h3 className="text-xs font-bold uppercase tracking-[0.3em] mb-4">Inventario Base</h3>
+            <h3 className="text-xs font-bold uppercase tracking-[0.3em] mb-4">Stock Crítico en Flota</h3>
             <p className="font-serif text-lg leading-tight italic opacity-70">
-              Entidades de mayor rendimiento clasificadas por dispersión regional.
+              Unidades que requieren reabastecimiento inmediato para cumplir ruta.
             </p>
           </div>
           <div className="space-y-4 flex-grow">
-            {MOCK_PRODUCTS.map(product => (
-              <div key={product.id} className="flex items-center justify-between group cursor-pointer border-b border-editorial-ink/5 pb-3">
+            {[
+              { id: 'v1', plate: 'LYS-102', stock: '12%', status: 'crítico' },
+              { id: 'v2', plate: 'LYS-205', stock: '18%', status: 'bajo' },
+              { id: 'v3', plate: 'LYS-301', stock: '22%', status: 'bajo' },
+            ].map(item => (
+              <div key={item.id} className="flex items-center justify-between group border-b border-editorial-ink/5 pb-3">
                 <div className="flex items-center gap-4">
-                  <div className="text-[10px] font-mono opacity-20 group-hover:opacity-100 transition-opacity">0{product.id}</div>
+                  <TruckIcon size={16} className={cn(item.status === 'crítico' ? "text-red-500" : "text-amber-500")} />
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider">{product.name}</p>
-                    <p className="text-[9px] font-mono opacity-40 group-hover:text-stone-500 transition-colors">{product.sku}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider">{item.plate}</p>
+                    <p className="text-[9px] font-mono opacity-40 uppercase">{item.status}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-serif italic">${product.price}</p>
-                </div>
+                <p className="text-sm font-mono font-bold">{item.stock}</p>
               </div>
             ))}
           </div>
           <button className="mt-8 py-3 text-[10px] font-bold uppercase tracking-[0.3em] border border-editorial-ink hover:bg-editorial-ink hover:text-white transition-all">
-            Audit Archive
+            VER REPORTE DE BODEGA
           </button>
         </div>
       </div>
@@ -455,8 +530,16 @@ function FleetView() {
 
 function InventoryView() {
   return (
-    <div className="space-y-12 animate-in fade-in duration-1000">
-      <div className="border border-editorial-ink">
+    <div className="space-y-12 animate-in fade-in duration-1000 pb-10">
+      <section className="space-y-6">
+        <div className="border-l-4 border-editorial-ink pl-6 mb-8">
+          <h3 className="text-2xl font-serif italic">Predicción Inteligente</h3>
+          <p className="text-xs opacity-60">Análisis de carga automática basado en demanda regional.</p>
+        </div>
+        <LoadPrediction />
+      </section>
+
+      <section className="border border-editorial-ink">
         <div className="bg-editorial-ink text-white p-6 flex justify-between items-center">
           <h3 className="text-xs font-bold uppercase tracking-[0.4em]">Control de Stock Maestro</h3>
           <p className="text-[10px] font-mono opacity-50">REF_ID: 99x_INVENTARIO</p>
@@ -489,7 +572,7 @@ function InventoryView() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div className="border-l-2 border-editorial-ink pl-10 space-y-6">
