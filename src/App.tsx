@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Toaster, toast } from 'sonner';
 import { 
   LayoutDashboard, 
   Truck, 
@@ -115,6 +116,9 @@ import NewSaleForm from './components/NewSaleForm';
 import { useOfflineSync } from './lib/useOfflineSync';
 import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminModules';
 
+import { Onboarding } from './components/Onboarding';
+import { ErrorReport } from './components/ErrorReport';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -127,6 +131,9 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-editorial-bg text-editorial-ink font-sans overflow-hidden md:border-8 border-white box-border">
+      <Onboarding />
+      <ErrorReport />
+      <Toaster position="top-right" expand={false} richColors />
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div 

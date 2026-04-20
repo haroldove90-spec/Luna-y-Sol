@@ -13,11 +13,28 @@ self.addEventListener('install', (event) => {
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  // Offline-first strategy for logic, Cache-first for static assets
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+// Push Notification handling
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : { title: 'Luna y Sol', body: 'Nueva notificación operacional.' };
+  
+  const options = {
+    body: data.body,
+    icon: '/icon-192x192.png', // Assuming icon exists
+    badge: '/icon-192x192.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url)
   );
 });

@@ -64,6 +64,7 @@ import { useOfflineSync } from '../lib/useOfflineSync';
 import { Wifi, WifiOff, RefreshCcw, Database, Printer, MapPin, Navigation, AlertTriangle } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { SaleTicket } from './SaleTicket';
+import { toast } from 'sonner';
 
 export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -135,11 +136,19 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.truckStock) return prev;
+        if (existing.quantity >= product.truckStock) {
+          toast.error(`Stock insuficiente en camión (${product.truckStock} máx)`);
+          return prev;
+        }
         return prev.map(item => 
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
+      if (product.truckStock < 1) {
+        toast.error('Producto sin disponibilidad en inventario móvil.');
+        return prev;
+      }
+      toast.success(`${product.name} añadido`);
       return [...prev, { ...product, quantity: 1 }];
     });
   };
@@ -152,7 +161,10 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
     setCart(prev => prev.map(item => {
       if (item.id === productId) {
         const newQty = Math.max(0, item.quantity + delta);
-        if (newQty > item.truckStock) return item;
+        if (newQty > item.truckStock) {
+          toast.error(`Exceso de stock disponible (${item.truckStock} máx)`);
+          return item;
+        }
         return { ...item, quantity: newQty };
       }
       return item;
@@ -179,6 +191,20 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
       });
       
       setLastSavedId(id as number);
+      
+      // Stock Alerts (< 10%)
+      cart.forEach(item => {
+        const remaining = item.truckStock - item.quantity;
+        if (remaining > 0 && remaining <= item.truckStock * 0.1) {
+          toast.warning(`⚠️ Alerta: Stock bajo en ${item.name} (${remaining} rest.)`);
+        }
+      });
+
+      if (isOnline) {
+        toast.success('Venta sincronizada exitosamente con la central.');
+      } else {
+        toast.info('Sin conexión. Resguardado localmente para sincronización.');
+      }
 
       // Transition to success state
       setTimeout(() => {
