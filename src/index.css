@@ -8,4 +8,18 @@
   
   --color-editorial-bg: #F9F7F2;
   --color-editorial-ink: #1A1A1A;
+  
+  --color-brand-primary: var(--primary);
+  --color-brand-sidebar: var(--sidebar-bg);
+}
+
+:root {
+  --primary: #4ADE80; 
+  --sidebar-bg: #2D2D3A;
+  --sidebar-text: #FFFFFF;
+  --bg-main: #F4F5F7;
+}
+
+body {
+  @apply bg-[var(--bg-main)] text-editorial-ink font-sans;
 }

@@ -23,6 +23,7 @@ import {
   Box,
   Truck as TruckIcon,
   Settings,
+  Palette,
   Menu,
   X as CloseIcon,
   DollarSign,
@@ -118,11 +119,29 @@ import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminMod
 
 import { Onboarding } from './components/Onboarding';
 import { ErrorReport } from './components/ErrorReport';
+import { BrandingSettings } from './components/BrandingSettings';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isOnline, isSyncing, pendingCount } = useOfflineSync();
+
+  const [brandConfig, setBrandConfig] = useState(() => {
+    const saved = localStorage.getItem('branding_config');
+    return saved ? JSON.parse(saved) : {
+      primaryColor: '#4ADE80',
+      sidebarBg: '#2D2D3A',
+      sidebarText: '#FFFFFF',
+      logoUrl: '',
+      appName: 'Luna y Sol'
+    };
+  });
+
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--primary', brandConfig.primaryColor);
+    document.documentElement.style.setProperty('--sidebar-bg', brandConfig.sidebarBg);
+    document.documentElement.style.setProperty('--bg-main', '#F4F5F7');
+  }, [brandConfig]);
 
   const handleNavClick = (tab: any) => {
     setActiveTab(tab);
@@ -144,140 +163,134 @@ export default function App() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-editorial-bg border-r border-editorial-ink flex flex-col shrink-0 transition-transform duration-300 md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 flex flex-col shrink-0 transition-transform duration-300 md:relative md:translate-x-0 overflow-hidden shadow-2xl",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="p-10 border-b border-editorial-ink flex justify-between items-center">
-          <div className="space-y-1">
-            <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60">Sistema v1.0.4</p>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-serif italic font-medium">Luna y Sol</span>
-            </div>
+      )} style={{ backgroundColor: brandConfig.sidebarBg, color: brandConfig.sidebarText }}>
+        <div className="p-10 flex flex-col items-center space-y-6 relative">
+          <div className="w-24 h-24 rounded-full flex items-center justify-center border-4" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+            {brandConfig.logoUrl ? (
+              <img src={brandConfig.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-20 h-20 rounded-full flex items-center justify-center text-black" style={{ backgroundColor: brandConfig.primaryColor }}>
+                <Users size={40} />
+              </div>
+            )}
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2">
+          <div className="text-center">
+            <h1 className="text-xl font-bold uppercase tracking-widest">{brandConfig.appName}</h1>
+            <p className="text-[10px] opacity-40 uppercase tracking-[0.2em] mt-1">SISTEMA INTEGRAL</p>
+          </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 text-white opacity-40 hover:opacity-100">
             <CloseIcon size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar">
-          <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 px-4 mt-2">Operación</p>
+        <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto custom-scrollbar">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] px-4 py-2 mt-2" style={{ color: brandConfig.primaryColor }}>DASHBOARD {">>>"}</p>
           <NavItem 
             icon={<LayoutDashboard size={18} />} 
             label="TABLERO" 
             active={activeTab === 'dashboard'} 
             onClick={() => handleNavClick('dashboard')} 
+            primaryColor={brandConfig.primaryColor}
           />
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Logística</p>
           <NavItem 
             icon={<ShoppingCart size={18} />} 
             label="NUEVA VENTA" 
             active={activeTab === 'sale'} 
             onClick={() => handleNavClick('sale')} 
+            primaryColor={brandConfig.primaryColor}
           />
           <NavItem 
             icon={<ClipboardCheck size={18} />} 
             label="LIQUIDACIÓN" 
             active={activeTab === 'settlement'} 
             onClick={() => handleNavClick('settlement')} 
-          />
-
-          <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40 px-4 mt-6">Administración</p>
-          <NavItem 
-            icon={<Box size={18} />} 
-            label="PRODUCTOS" 
-            active={activeTab === 'products'} 
-            onClick={() => handleNavClick('products')} 
-          />
-          <NavItem 
-            icon={<Users size={18} />} 
-            label="CLIENTES" 
-            active={activeTab === 'customers'} 
-            onClick={() => handleNavClick('customers')} 
-          />
-          <NavItem 
-            icon={<TruckIcon size={18} />} 
-            label="FLOTILLA" 
-            active={activeTab === 'fleet'} 
-            onClick={() => handleNavClick('fleet')} 
+            primaryColor={brandConfig.primaryColor}
           />
           <NavItem 
             icon={<Package size={18} />} 
             label="BODEGA" 
             active={activeTab === 'inventory'} 
             onClick={() => handleNavClick('inventory')} 
+            primaryColor={brandConfig.primaryColor}
+          />
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Administración</p>
+          <NavItem 
+            icon={<Box size={18} />} 
+            label="PRODUCTOS" 
+            active={activeTab === 'products'} 
+            onClick={() => handleNavClick('products')} 
+            primaryColor={brandConfig.primaryColor}
+          />
+          <NavItem 
+            icon={<Users size={18} />} 
+            label="CLIENTES" 
+            active={activeTab === 'customers'} 
+            onClick={() => handleNavClick('customers')} 
+            primaryColor={brandConfig.primaryColor}
+          />
+          <NavItem 
+            icon={<TruckIcon size={18} />} 
+            label="FLOTILLA" 
+            active={activeTab === 'fleet'} 
+            onClick={() => handleNavClick('fleet')} 
+            primaryColor={brandConfig.primaryColor}
+          />
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Configuración</p>
+          <NavItem 
+            icon={<Palette size={18} />} 
+            label="BRANDING" 
+            active={activeTab === 'branding'} 
+            onClick={() => handleNavClick('branding')} 
+            primaryColor={brandConfig.primaryColor}
           />
         </nav>
-
-        <div className="p-8 border-t border-editorial-ink">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-editorial-ink rounded-full flex items-center justify-center text-white font-serif italic text-xl">
-              A
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase leading-none tracking-wider">Sr. Arquitecto</p>
-              <p className="text-[9px] opacity-60 mt-1 uppercase">Líder Logístico</p>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto flex flex-col relative">
         {activeTab !== 'sale' && (
-          <header className="min-h-[6rem] md:h-28 bg-editorial-bg border-b border-editorial-ink flex flex-col md:flex-row items-start md:items-end justify-between px-6 md:px-10 pb-6 pt-6 md:pt-0 sticky top-0 z-10 transition-all gap-4">
-            <div className="flex items-center gap-4 w-full md:w-auto">
+          <header className="min-h-[4rem] bg-stone-50/50 backdrop-blur-md border-b border-editorial-ink/5 flex items-center justify-between px-6 md:px-10 sticky top-0 z-10">
+            <div className="flex items-center gap-6">
               <button 
                 onClick={() => setIsSidebarOpen(true)} 
-                className="md:hidden p-2 -ml-2 hover:bg-stone-100 rounded-full transition-colors"
+                className="md:hidden p-2 -ml-2 text-editorial-ink opacity-40"
               >
                 <Menu size={24} />
               </button>
-              <div>
-                <p className="text-[9px] md:text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
-                  {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
-                   activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 
-                   activeTab === 'inventory' ? 'CADENA DE SUMINISTRO' : 
-                   activeTab === 'products' ? 'SISTEMA CENTRAL' :
-                   activeTab === 'customers' ? 'ACTIVOS COMERCIALES' :
-                   'CIERRE DE OPERACIONES'}
-                </p>
-                <h1 className="text-3xl md:text-5xl font-serif italic leading-none whitespace-nowrap">
+              <div className="hidden md:flex flex-col">
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-40">Operaciones en tiempo real</p>
+                <h3 className="text-xl font-serif italic text-editorial-ink leading-tight">
                   {activeTab === 'dashboard' ? 'Dashboard Ejecutivo' : 
                    activeTab === 'fleet' ? 'Gestión de Unidades' : 
                    activeTab === 'inventory' ? 'Control de Stock' : 
                    activeTab === 'products' ? 'Catálogo Maestro' :
                    activeTab === 'customers' ? 'Directorio Clientes' :
+                   activeTab === 'branding' ? 'Imagen Corporativa' :
                    'Liquidación de Ruta'}
-                </h1>
+                </h3>
               </div>
             </div>
-            <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
-              {/* Sync Indicator */}
-              <div className="flex items-center gap-3 px-3 py-1.5 border border-editorial-ink/10 bg-white/50">
-                {isOnline ? (
-                  <Wifi size={14} className="text-green-600" />
-                ) : (
-                  <WifiOff size={14} className="text-stone-400" />
-                )}
-                <div className="h-4 w-px bg-editorial-ink/10" />
-                {pendingCount > 0 ? (
-                  <div className="flex items-center gap-2">
-                    <RefreshCcw size={14} className={cn("text-[#FF6321]", isSyncing && "animate-spin")} />
-                    <span className="text-[10px] font-mono font-bold">{pendingCount} PENDIENTE{pendingCount !== 1 && 'S'}</span>
-                  </div>
-                ) : (
-                  <span className="text-[10px] font-mono opacity-40 uppercase">Sincronizado</span>
-                )}
-              </div>
 
-              <div className="relative">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="BUSCAR ARCHIVO..." 
-                  className="pl-6 py-1 bg-transparent border-b border-editorial-ink/20 text-xs font-mono uppercase tracking-widest focus:border-editorial-ink outline-none w-48 transition-all"
-                />
-              </div>
-              <p className="text-xs font-mono font-bold">2024//LOG</p>
+            <div className="flex items-center gap-6">
+               {/* Sincronización */}
+               {pendingCount > 0 && (
+                 <div className="flex items-center gap-2 px-3 py-1 bg-stone-100 rounded-full">
+                    <RefreshCcw size={12} className={cn("text-[var(--primary)]", isSyncing && "animate-spin")} />
+                    <span className="text-[9px] font-bold font-mono">{pendingCount}</span>
+                 </div>
+               )}
+
+               <div className="h-8 w-px bg-editorial-ink/10" />
+
+               <div className="flex items-center gap-3">
+                  <span className="hidden sm:block text-[10px] font-bold uppercase tracking-widest opacity-40">LÍDER LOGÍSTICO</span>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px]" style={{ backgroundColor: 'var(--primary)', color: '#000' }}>
+                    <Users size={16} />
+                  </div>
+               </div>
             </div>
           </header>
         )}
@@ -288,6 +301,7 @@ export default function App() {
           {activeTab === 'inventory' && <InventoryView />}
           {activeTab === 'products' && <ProductAdmin />}
           {activeTab === 'customers' && <CustomerAdmin />}
+          {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
           {activeTab === 'sale' && (
             <NewSaleForm 
               onCancel={() => setActiveTab('dashboard')} 
@@ -312,44 +326,47 @@ export default function App() {
   );
 }
 
-function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+function NavItem({ icon, label, active, onClick, primaryColor }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void, primaryColor?: string }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center justify-between px-4 py-2 border transition-all duration-300",
+        "w-full flex items-center justify-between px-6 py-3 transition-all duration-300 relative group",
         active 
-          ? "bg-editorial-ink text-white border-editorial-ink" 
-          : "text-editorial-ink border-transparent hover:border-editorial-ink/40"
+          ? "opacity-100" 
+          : "opacity-40 hover:opacity-100"
       )}
     >
-      <div className="flex items-center gap-3">
-        {icon}
+      <div className="flex items-center gap-4">
+        <div style={{ color: active ? primaryColor : 'inherit' }}>{icon}</div>
         <span className="text-[10px] font-bold tracking-[0.2em]">{label}</span>
       </div>
-      {active && <ChevronRight size={14} />}
+      {active && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full" style={{ backgroundColor: primaryColor }} />
+      )}
+      <ChevronRight size={14} className={cn("transition-transform", active ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:opacity-40")} />
     </button>
   );
 }
 
 function StatCard({ title, value, change, trend, icon }: { title: string, value: string, change: string, trend: 'up' | 'down', icon: React.ReactNode }) {
   return (
-    <div className="bg-white p-8 border border-editorial-ink/10 relative overflow-hidden group hover:border-editorial-ink transition-colors">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-stone-400 via-stone-500 to-stone-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+    <div className="bg-white p-8 border border-editorial-ink/5 relative overflow-hidden group hover:border-editorial-ink/20 transition-all rounded-2xl shadow-sm">
+      <div className="absolute top-0 left-0 w-1 h-full bg-[var(--primary)] opacity-0 group-hover:opacity-100 transition-opacity"></div>
       <div className="flex justify-between items-start mb-6">
-        <div className="text-editorial-ink opacity-40">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-black" style={{ backgroundColor: 'var(--primary)' }}>
           {icon}
         </div>
         <div className={cn(
-          "text-[10px] font-mono font-bold tracking-tighter",
-          trend === 'up' ? "text-stone-600" : "text-stone-400"
+          "text-[10px] font-mono font-bold tracking-tighter px-3 py-1 rounded-full",
+          trend === 'up' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
         )}>
           {trend === 'up' ? '▲' : '▼'} {change}
         </div>
       </div>
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-2">{title}</p>
-        <h3 className="text-4xl font-serif italic translate-y-2 group-hover:translate-y-0 transition-transform duration-500">{value}</h3>
+        <h3 className="text-4xl font-serif italic text-editorial-ink">{value}</h3>
       </div>
     </div>
   );
@@ -436,9 +453,9 @@ function DashboardView() {
                    contentStyle={{ backgroundColor: '#1A1A1A', color: '#fff', border: 'none', fontFamily: 'monospace', fontSize: '10px' }}
                    itemStyle={{ color: '#fff' }}
                 />
-                <Bar dataKey="ventas" radius={0}>
+                <Bar dataKey="ventas" radius={[4, 4, 0, 0]}>
                   {SALES_DATA.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={index === SALES_DATA.length - 1 ? '#1A1A1A' : '#D1D1D1'} />
+                    <Cell key={`cell-${index}`} fill={index === SALES_DATA.length - 1 ? 'var(--primary)' : '#D1D1D1'} />
                   ))}
                 </Bar>
               </BarChart>
