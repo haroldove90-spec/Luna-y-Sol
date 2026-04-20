@@ -70,6 +70,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [truckProducts, setTruckProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [isFinishing, setIsFinishing] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -125,11 +126,11 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
 
   // Filters
   const filteredProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter(p => 
+    return truckProducts.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       p.sku.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, truckProducts]);
 
   // Cart Logic
   const addToCart = (product: Product) => {
@@ -191,6 +192,17 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
       });
       
       setLastSavedId(id as number);
+
+      // Actualizar stock local para pruebas de integridad
+      setTruckProducts(prev => {
+        return prev.map(p => {
+          const itemInCart = cart.find(item => item.id === p.id);
+          if (itemInCart) {
+            return { ...p, truckStock: p.truckStock - itemInCart.quantity };
+          }
+          return p;
+        });
+      });
       
       // Stock Alerts (< 10%)
       cart.forEach(item => {
