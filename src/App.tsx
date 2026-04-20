@@ -96,13 +96,19 @@ const SALES_DATA = [
   { name: 'Dom', ventas: 3490 },
 ];
 
+import NewSaleForm from './components/NewSaleForm';
+
+import { useOfflineSync } from './lib/useOfflineSync';
+import { Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale'>('dashboard');
+  const { isOnline, isSyncing, pendingCount } = useOfflineSync();
 
   return (
     <div className="flex h-screen bg-editorial-bg text-editorial-ink font-sans overflow-hidden border-8 border-white box-border">
       {/* Sidebar */}
-      <aside className="w-64 bg-editorial-bg border-r border-editorial-ink flex flex-col">
+      <aside className="w-64 bg-editorial-bg border-r border-editorial-ink flex flex-col shrink-0">
         <div className="p-10 border-b border-editorial-ink">
           <div className="space-y-1">
             <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60">Sistema v1.0.4</p>
@@ -131,6 +137,12 @@ export default function App() {
             active={activeTab === 'inventory'} 
             onClick={() => setActiveTab('inventory')} 
           />
+          <NavItem 
+            icon={<ShoppingCart size={18} />} 
+            label="NUEVA VENTA" 
+            active={activeTab === 'sale'} 
+            onClick={() => setActiveTab('sale')} 
+          />
         </nav>
 
         <div className="p-8 border-t border-editorial-ink">
@@ -148,41 +160,72 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto flex flex-col">
-        <header className="h-24 bg-editorial-bg border-b border-editorial-ink flex items-end justify-between px-10 pb-6 sticky top-0 z-10">
-          <div>
-            <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
-              {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
-               activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 'CADENA DE SUMINISTRO'}
-            </p>
-            <h1 className="text-5xl font-serif italic leading-none">
-              {activeTab === 'dashboard' ? 'Resumen Ejecutivo' : 
-               activeTab === 'fleet' ? 'Gestión de Unidades' : 'Control de Stock'}
-            </h1>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
-              <input 
-                type="text" 
-                placeholder="BUSCAR ARCHIVO..." 
-                className="pl-6 py-1 bg-transparent border-b border-editorial-ink/20 text-xs font-mono uppercase tracking-widest focus:border-editorial-ink outline-none w-48 transition-all"
-              />
+        {activeTab !== 'sale' && (
+          <header className="h-24 bg-editorial-bg border-b border-editorial-ink flex items-end justify-between px-10 pb-6 sticky top-0 z-10 transition-all">
+            <div>
+              <p className="text-[10px] tracking-[0.3em] font-bold uppercase opacity-60 mb-1">
+                {activeTab === 'dashboard' ? 'ANALÍTICA EN TIEMPO REAL' : 
+                 activeTab === 'fleet' ? 'GESTIÓN LOGÍSTICA' : 'CADENA DE SUMINISTRO'}
+              </p>
+              <h1 className="text-5xl font-serif italic leading-none">
+                {activeTab === 'dashboard' ? 'Resumen Ejecutivo' : 
+                 activeTab === 'fleet' ? 'Gestión de Unidades' : 'Control de Stock'}
+              </h1>
             </div>
-            <p className="text-xs font-mono font-bold">2024//LOG</p>
-          </div>
-        </header>
+            <div className="flex items-center gap-6">
+              {/* Sync Indicator */}
+              <div className="flex items-center gap-3 px-3 py-1.5 border border-editorial-ink/10 bg-white/50">
+                {isOnline ? (
+                  <Wifi size={14} className="text-green-600" />
+                ) : (
+                  <WifiOff size={14} className="text-stone-400" />
+                )}
+                <div className="h-4 w-px bg-editorial-ink/10" />
+                {pendingCount > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCcw size={14} className={cn("text-[#FF6321]", isSyncing && "animate-spin")} />
+                    <span className="text-[10px] font-mono font-bold">{pendingCount} PENDIENTE{pendingCount !== 1 && 'S'}</span>
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-mono opacity-40 uppercase">Sincronizado</span>
+                )}
+              </div>
 
-        <div className="p-10 flex-grow">
+              <div className="relative">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="BUSCAR ARCHIVO..." 
+                  className="pl-6 py-1 bg-transparent border-b border-editorial-ink/20 text-xs font-mono uppercase tracking-widest focus:border-editorial-ink outline-none w-48 transition-all"
+                />
+              </div>
+              <p className="text-xs font-mono font-bold">2024//LOG</p>
+            </div>
+          </header>
+        )}
+
+        <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'fleet' && <FleetView />}
           {activeTab === 'inventory' && <InventoryView />}
+          {activeTab === 'sale' && (
+            <NewSaleForm 
+              onCancel={() => setActiveTab('dashboard')} 
+              onSuccess={(data) => {
+                console.log('Venta exitosa:', data);
+                setActiveTab('dashboard');
+              }} 
+            />
+          )}
         </div>
 
-        <footer className="mt-auto px-10 py-6 flex justify-between items-center text-[9px] uppercase tracking-[0.2em] font-bold border-t border-editorial-ink/10 opacity-40">
-          <div>Especificación Técnica Confidencial</div>
-          <div>Marco Logístico Propietario © 2024</div>
-          <div>Solo Uso Interno</div>
-        </footer>
+        {activeTab !== 'sale' && (
+          <footer className="mt-auto px-10 py-6 flex justify-between items-center text-[9px] uppercase tracking-[0.2em] font-bold border-t border-editorial-ink/10 opacity-40">
+            <div>Especificación Técnica Confidencial</div>
+            <div>Marco Logístico Propietario © 2024</div>
+            <div>Solo Uso Interno</div>
+          </footer>
+        )}
       </main>
     </div>
   );
