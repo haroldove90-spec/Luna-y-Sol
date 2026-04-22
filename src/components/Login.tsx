@@ -4,15 +4,21 @@ import { toast } from 'sonner';
 import { Loader2, LogIn, Lock, Mail } from 'lucide-react';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const [userIdentifier, setUserIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
+    // Si no tiene @, asumimos que es un nombre de usuario y agregamos el dominio por defecto
+    const finalEmail = userIdentifier.includes('@') 
+      ? userIdentifier 
+      : `${userIdentifier.trim()}@lunaysol.com.mx`;
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: finalEmail,
       password,
     });
 
@@ -36,15 +42,15 @@ export function Login() {
         <form onSubmit={handleLogin} className="space-y-8">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 flex items-center gap-2">
-              <Mail size={12} /> Email de Usuario
+              <Mail size={12} /> Usuario o Email
             </label>
             <input 
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={userIdentifier}
+              onChange={(e) => setUserIdentifier(e.target.value)}
               className="w-full border-b border-editorial-ink/20 py-3 outline-none focus:border-editorial-ink transition-all font-mono text-sm uppercase"
-              placeholder="USUARIO@LUNAYSOL.COM"
+              placeholder="EJ: ADMIN o ADMIN@LGS.COM"
             />
           </div>
 
