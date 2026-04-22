@@ -127,10 +127,14 @@ BEGIN
     INSERT INTO public.profiles (id, full_name, email, role)
     VALUES (
         NEW.id, 
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'display_name', 'Nuevo Usuario'), 
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'display_name', NEW.email), 
         NEW.email, 
         COALESCE(NEW.raw_user_meta_data->>'role', 'driver')
-    );
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        email = EXCLUDED.email,
+        role = EXCLUDED.role;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
