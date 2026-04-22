@@ -42,7 +42,7 @@ export function BrandingSettings({ config, onChange }: BrandingSettingsProps) {
     <div className="space-y-12 animate-in fade-in duration-700 max-w-4xl">
       <div className="border-b border-editorial-ink pb-6">
         <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Personalización Pro</h3>
-        <p className="text-4xl font-serif italic mt-2">Imagen Corporativa</p>
+        <p className="text-4xl font-sans font-bold mt-2">Imagen Corporativa</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -97,7 +97,7 @@ export function BrandingSettings({ config, onChange }: BrandingSettingsProps) {
                   type="text"
                   value={localConfig.appName}
                   onChange={(e) => setLocalConfig({...localConfig, appName: e.target.value})}
-                  className="w-full border-b border-editorial-ink/20 py-2 font-serif italic text-lg outline-none focus:border-editorial-ink transition-all"
+                  className="w-full border-b border-editorial-ink/20 py-2 font-sans font-bold text-lg outline-none focus:border-editorial-ink transition-all"
                 />
               </div>
               <div className="space-y-2">
@@ -127,11 +127,11 @@ export function BrandingSettings({ config, onChange }: BrandingSettingsProps) {
                   <img src={localConfig.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border-4" style={{ borderColor: localConfig.primaryColor }} referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-20 h-20 rounded-full flex items-center justify-center text-white border-4" style={{ backgroundColor: localConfig.primaryColor, borderColor: 'rgba(255,255,255,0.1)' }}>
-                    <span className="text-3xl font-serif italic">{localConfig.appName.charAt(0)}</span>
+                    <span className="text-3xl font-sans font-bold">{localConfig.appName.charAt(0)}</span>
                   </div>
                 )}
                 <div className="text-center">
-                  <p className="text-lg font-serif italic">{localConfig.appName}</p>
+                  <p className="text-lg font-sans font-bold">{localConfig.appName}</p>
                   <p className="text-[8px] opacity-40 tracking-widest uppercase mt-1">SISTEMA EMPRESARIAL</p>
                 </div>
               </div>

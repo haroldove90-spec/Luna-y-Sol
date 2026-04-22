@@ -60,8 +60,8 @@ export function Login() {
     <div className="fixed inset-0 bg-[#F4F5F7] z-[100] flex items-center justify-center p-6">
       <div className="w-full max-w-md bg-white border border-editorial-ink shadow-2xl p-12 space-y-10">
         <div className="text-center space-y-4">
-          <div className="w-20 h-20 bg-editorial-ink text-white rounded-full flex items-center justify-center mx-auto text-3xl font-serif italic mb-6">L</div>
-          <h2 className="text-4xl font-serif italic">Luna y Sol</h2>
+          <div className="w-20 h-20 bg-editorial-ink text-white rounded-full flex items-center justify-center mx-auto text-3xl font-sans font-bold mb-6">L</div>
+          <h2 className="text-4xl font-sans font-bold">Luna y Sol</h2>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">
             {isRegistering ? 'Registro de Nueva Cuenta' : 'Protocolo de Acceso Seguro'}
           </p>
@@ -77,8 +77,8 @@ export function Login() {
               required
               value={userIdentifier}
               onChange={(e) => setUserIdentifier(e.target.value)}
-              className="w-full border-b border-editorial-ink/20 py-3 outline-none focus:border-editorial-ink transition-all font-mono text-sm uppercase"
-              placeholder="EJ: ADMIN o ADMIN@LGS.COM"
+              className="w-full border-b border-editorial-ink/20 py-3 outline-none focus:border-editorial-ink transition-all font-sans text-sm"
+              placeholder="Ej: admin o admin@lunaysol.com.mx"
             />
           </div>
 
@@ -126,7 +126,7 @@ export function Login() {
         </form>
 
         <div className="pt-8 border-t border-editorial-ink/5 text-center">
-          <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 leading-relaxed italic">
+          <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 leading-relaxed">
             EL ACCESO NO AUTORIZADO ESTÁ MONITOREADO // 2024 V1.0
           </p>
         </div>

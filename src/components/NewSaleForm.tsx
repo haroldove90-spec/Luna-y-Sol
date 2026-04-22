@@ -15,10 +15,22 @@ import {
   X,
   FileText,
   RotateCcw,
-  Loader2
+  Loader2,
+  Wifi, 
+  WifiOff, 
+  RefreshCcw, 
+  Database, 
+  Printer, 
+  MapPin, 
+  Navigation, 
+  AlertTriangle
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useOfflineSync } from '../lib/useOfflineSync';
+import { useReactToPrint } from 'react-to-print';
+import { SaleTicket } from './SaleTicket';
+import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -64,12 +76,6 @@ interface NewSaleFormProps {
   onCancel: () => void;
   onSuccess: (orderData: any) => void;
 }
-
-import { useOfflineSync } from '../lib/useOfflineSync';
-import { Wifi, WifiOff, RefreshCcw, Database, Printer, MapPin, Navigation, AlertTriangle } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
-import { SaleTicket } from './SaleTicket';
-import { toast } from 'sonner';
 
 export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -135,7 +141,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   };
 
   const { isOnline, saveOrder } = useOfflineSync();
-  const ticketRef = React.useRef<HTMLDivElement>(null);
+  const ticketRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: ticketRef,
@@ -334,7 +340,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
         <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-green-100">
           <CheckCircle2 className="text-white" size={40} />
         </div>
-        <h2 className="text-3xl font-serif italic text-center mb-2">Venta Completada</h2>
+        <h2 className="text-3xl font-sans font-bold text-center mb-2">Venta Completada</h2>
         <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mb-12">Referencia: #{lastSavedId}</p>
         
         <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
@@ -381,7 +387,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
             <Database className="text-[#FF6321] animate-pulse" size={32} />
           )}
         </div>
-        <h2 className="text-3xl font-serif italic text-center mb-4">
+        <h2 className="text-3xl font-sans font-bold text-center mb-4">
           {isOnline ? 'Sincronizando Venta...' : 'Venta Guardada Localmente'}
         </h2>
         <p className="text-sm font-mono opacity-40 uppercase tracking-widest text-center px-8">
@@ -403,7 +409,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
           </button>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 leading-none mb-1">Módulo de Chofer</p>
-            <h2 className="text-2xl font-serif italic">Nueva Venta</h2>
+            <h2 className="text-2xl font-sans font-bold">Nueva Venta</h2>
           </div>
         </div>
         <div className={cn(
@@ -491,10 +497,10 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
             <input 
               type="text" 
-              placeholder="BUSCAR PRODUCTO..."
+              placeholder="Buscar producto..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white border border-editorial-ink/10 text-xs font-bold uppercase tracking-widest focus:border-editorial-ink outline-none transition-all shadow-sm"
+              className="w-full pl-12 pr-4 py-4 bg-white border border-editorial-ink/10 text-xs font-bold tracking-widest focus:border-editorial-ink outline-none transition-all shadow-sm"
             />
           </div>
 
@@ -514,7 +520,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <p className="text-sm font-serif italic font-bold text-editorial-ink">${p.price}</p>
+                    <p className="text-sm font-sans font-bold text-editorial-ink">${p.price}</p>
                     {inCart ? (
                       <div className="flex items-center gap-3 bg-editorial-bg border border-editorial-ink/10 px-2 py-1">
                         <button onClick={() => updateQuantity(p.id, -1)} className="p-1 text-editorial-ink hover:text-red-500">
@@ -563,7 +569,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
             </div>
             <div className="flex justify-between pt-2 border-t border-stone-100">
               <span className="text-xs font-bold uppercase tracking-[0.3em] text-editorial-ink">Total a Cobrar</span>
-              <span className="text-2xl font-serif italic font-bold text-editorial-ink">${total.toFixed(2)}</span>
+              <span className="text-2xl font-sans font-bold text-editorial-ink">${total.toFixed(2)}</span>
             </div>
           </div>
           
@@ -583,7 +589,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
           <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-8 shadow-2xl space-y-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-start border-b border-editorial-ink/5 pb-4">
               <div>
-                <h4 className="text-xl font-serif italic text-editorial-ink">Prueba de Entrega</h4>
+                <h4 className="text-xl font-sans font-bold text-editorial-ink">Prueba de Entrega</h4>
                 <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-1">Conformidad del Cliente</p>
               </div>
               <button 
@@ -597,9 +603,9 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
 
             <div className="space-y-4">
                <div className="p-4 bg-stone-50 border border-editorial-ink/10 rounded-sm">
-                  <div className="flex justify-between mb-4">
+                    <div className="flex justify-between mb-4">
                     <span className="text-[10px] font-bold uppercase opacity-40">Pedido Total:</span>
-                    <span className="text-sm font-serif italic font-bold">${total.toFixed(2)}</span>
+                    <span className="text-sm font-sans font-bold">${total.toFixed(2)}</span>
                   </div>
                   <div className="border-t border-editorial-ink/10 pt-4 bg-white">
                     <SignatureCanvas 

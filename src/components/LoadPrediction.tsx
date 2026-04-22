@@ -45,7 +45,7 @@ export function LoadPrediction() {
         </div>
         <div>
           <h3 className="text-xs font-bold uppercase tracking-[0.3em]">IA Predicción de Carga</h3>
-          <p className="text-sm font-serif italic opacity-60">Sugerencias basadas en el historial de los últimos 7 días.</p>
+          <p className="text-sm font-sans opacity-60">Sugerencias basadas en el historial de los últimos 7 días.</p>
         </div>
       </div>
 
@@ -60,7 +60,7 @@ export function LoadPrediction() {
                </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-serif italic text-editorial-ink">{s.recommendation}</p>
+              <p className="text-2xl font-sans font-bold text-editorial-ink">{s.recommendation}</p>
               <p className="text-[8px] font-bold uppercase tracking-tighter opacity-40">CARGA SUGERIDA</p>
             </div>
           </div>

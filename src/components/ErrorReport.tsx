@@ -46,7 +46,7 @@ export function ErrorReport() {
             <div className="flex justify-between items-start">
                <div>
                  <h3 className="text-xs font-bold uppercase tracking-[0.4em]">Soporte Técnico</h3>
-                 <p className="text-xl font-serif italic">Informar una incidencia</p>
+                 <p className="text-xl font-sans font-bold">Informar una incidencia</p>
                </div>
                <button onClick={() => setIsOpen(false)}><X size={20} className="opacity-40" /></button>
             </div>

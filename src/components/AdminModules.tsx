@@ -121,7 +121,7 @@ export function ProductAdmin() {
       <div className="flex justify-between items-end border-b border-editorial-ink pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Catálogo Maestro</h3>
-          <p className="text-4xl font-serif italic mt-2">Productos y Precios</p>
+          <p className="text-4xl font-sans mt-2">Productos y Precios</p>
         </div>
         <button 
           onClick={() => setIsEditing({ id: 'new', sku: '', name: '', price: 0, unit: 'PZA', category: '' })}
@@ -135,10 +135,10 @@ export function ProductAdmin() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
         <input 
           type="text" 
-          placeholder="BUSCAR EN ARCHIVO..."
+          placeholder="Buscar en archivo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-editorial-ink/10 text-xs font-bold uppercase tracking-widest focus:border-editorial-ink outline-none"
+          className="w-full pl-12 pr-4 py-3 bg-white border border-editorial-ink/10 text-xs font-bold tracking-widest focus:border-editorial-ink outline-none"
         />
       </div>
 
@@ -342,7 +342,7 @@ export function VehicleAdmin() {
             <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
               <div>
                 <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
-                <p className="text-sm font-serif italic">{v.driver_name}</p>
+                <p className="text-sm font-sans">{v.driver_name}</p>
               </div>
               <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
             </div>

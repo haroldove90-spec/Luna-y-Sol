@@ -148,7 +148,7 @@ export function InventoryManager() {
       <div className="border-b border-editorial-ink pb-6 flex justify-between items-end">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Suministros</h3>
-          <p className="text-4xl font-serif italic mt-2">Inventario de Unidades</p>
+          <p className="text-4xl font-sans mt-2">Inventario de Unidades</p>
         </div>
         <div className="flex border border-editorial-ink p-1">
           <button 
@@ -242,7 +242,7 @@ export function InventoryManager() {
                 <div className="space-y-4 pt-4">
                    <div className="flex items-start gap-3 p-4 bg-white/5 text-[9px] leading-relaxed">
                       <AlertCircle size={14} className="shrink-0 text-[var(--primary)]" />
-                      <p className="opacity-60 uppercase tracking-wider italic">
+                      <p className="opacity-60 uppercase tracking-wider">
                         Esta acción actualizará el stock físico del camión. Asegúrese de que el conteo de carga sea preciso antes de confirmar.
                       </p>
                    </div>

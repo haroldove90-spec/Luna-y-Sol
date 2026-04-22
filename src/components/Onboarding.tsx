@@ -71,7 +71,7 @@ export function Onboarding() {
                 <p className="text-[10px] font-mono font-bold tracking-[0.3em] opacity-40 uppercase">
                   Paso {currentStep + 1} de {steps.length}
                 </p>
-                <h3 className="text-2xl font-serif italic">{steps[currentStep].title}</h3>
+                <h3 className="text-2xl font-sans font-bold">{steps[currentStep].title}</h3>
                 <p className="text-sm opacity-60 leading-relaxed font-sans">
                   {steps[currentStep].description}
                 </p>

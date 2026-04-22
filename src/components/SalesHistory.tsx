@@ -50,16 +50,16 @@ export function SalesHistory() {
       <div className="flex justify-between items-end border-b border-editorial-ink/10 pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Auditoría Comercial</h3>
-          <p className="text-4xl font-serif italic mt-2">Historial de Ventas</p>
+          <p className="text-4xl font-sans mt-2">Historial de Ventas</p>
         </div>
         <div className="flex gap-4">
           <div className="relative w-64">
              <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={16} />
              <input 
-               placeholder="BUSCAR VENTA..."
+               placeholder="Buscar venta..."
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
-               className="w-full pl-12 pr-4 py-3 bg-stone-100 border-none text-[10px] font-bold uppercase tracking-widest focus:ring-1 ring-editorial-ink outline-none"
+               className="w-full pl-12 pr-4 py-3 bg-stone-100 border-none text-[10px] font-bold tracking-widest focus:ring-1 ring-editorial-ink outline-none"
              />
           </div>
           <button className="p-3 bg-editorial-ink text-white hover:bg-black transition-colors">
@@ -99,7 +99,7 @@ export function SalesHistory() {
                         </div>
                       </td>
                       <td className="p-6">
-                        <p className="text-lg font-serif italic font-bold">${order.total?.toFixed(2)}</p>
+                        <p className="text-lg font-sans font-bold">${order.total?.toFixed(2)}</p>
                       </td>
                       <td className="p-6">
                         <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[9px] font-bold uppercase tracking-widest border border-green-200">
@@ -130,7 +130,7 @@ export function SalesHistory() {
             <div className="flex justify-between items-start mb-12">
                <div>
                  <h4 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Detalle de Operación</h4>
-                 <p className="text-3xl font-serif italic mt-2">Venta #{selectedOrder.id.split('-')[0].toUpperCase()}</p>
+                 <p className="text-3xl font-sans font-bold mt-2">Venta #{selectedOrder.id.split('-')[0].toUpperCase()}</p>
                </div>
                <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
                  <Search size={24} className="rotate-45" />
@@ -152,7 +152,7 @@ export function SalesHistory() {
               <div className="space-y-6">
                 <h5 className="text-[10px] font-bold uppercase tracking-widest opacity-40 border-b border-editorial-ink/5 pb-2">Cliente Final</h5>
                 <div className="flex gap-4 items-start">
-                  <div className="w-12 h-12 bg-editorial-ink text-white flex items-center justify-center font-serif italic text-xl">
+                  <div className="w-12 h-12 bg-editorial-ink text-white flex items-center justify-center font-sans text-xl">
                     {selectedOrder.customers?.name?.[0]}
                   </div>
                   <div>

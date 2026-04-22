@@ -31,7 +31,9 @@ import {
   Download,
   FileSpreadsheet,
   Loader2,
-  FileText
+  FileText,
+  LogOut, 
+  User as UserIcon
 } from 'lucide-react';
 import { LoadPrediction } from './components/LoadPrediction';
 import { SalesHistory } from './components/SalesHistory';
@@ -47,6 +49,16 @@ import {
 } from 'recharts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import RouteSettlement from './components/RouteSettlement';
+import NewSaleForm from './components/NewSaleForm';
+import { useOfflineSync } from './lib/useOfflineSync';
+import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminModules';
+import { Onboarding } from './components/Onboarding';
+import { ErrorReport } from './components/ErrorReport';
+import { BrandingSettings } from './components/BrandingSettings';
+import { InventoryManager } from './components/InventoryManager';
+import { Login } from './components/Login';
+import { supabase } from './lib/supabase';
 
 // Helper for Tailwind classes
 function cn(...inputs: ClassValue[]) {
@@ -115,19 +127,6 @@ const SALES_DATA = [
   { name: 'Dom', ventas: 3490 },
 ];
 
-import RouteSettlement from './components/RouteSettlement';
-import NewSaleForm from './components/NewSaleForm';
-import { useOfflineSync } from './lib/useOfflineSync';
-import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminModules';
-
-import { Onboarding } from './components/Onboarding';
-import { ErrorReport } from './components/ErrorReport';
-import { BrandingSettings } from './components/BrandingSettings';
-import { InventoryManager } from './components/InventoryManager';
-import { Login } from './components/Login';
-import { supabase } from './lib/supabase';
-import { LogOut, User as UserIcon } from 'lucide-react';
-
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
@@ -190,7 +189,7 @@ export default function App() {
     };
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.style.setProperty('--primary', brandConfig.primaryColor);
     document.documentElement.style.setProperty('--sidebar-bg', brandConfig.sidebarBg);
     document.documentElement.style.setProperty('--bg-main', '#F4F5F7');
