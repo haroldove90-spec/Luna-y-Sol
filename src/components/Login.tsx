@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, LogIn, Lock, Mail } from 'lucide-react';
+import { Loader2, LogIn, Lock, Mail, Plus } from 'lucide-react';
 
 export function Login() {
+  const [isRegistering, setIsRegistering] = useState(false);
   const [userIdentifier, setUserIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
@@ -17,20 +18,39 @@ export function Login() {
       ? userIdentifier.trim()
       : `${userIdentifier.trim().toLowerCase()}@lunaysol.com.mx`;
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: finalEmail,
-      password: password.trim(),
-    });
-
-    if (error) {
-      console.error('Login error:', error);
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('Usuario o contraseña incorrectos. Verifica tus datos.');
+    if (isRegistering) {
+      const { error } = await supabase.auth.signUp({
+        email: finalEmail,
+        password: password.trim(),
+        options: {
+          data: {
+            display_name: userIdentifier.split('@')[0],
+          }
+        }
+      });
+      
+      if (error) {
+        toast.error('Error al registrar: ' + error.message);
       } else {
-        toast.error('Error de acceso: ' + error.message);
+        toast.success('Registro exitoso. Ahora puedes entrar.');
+        setIsRegistering(false);
       }
     } else {
-      toast.success('Sesión iniciada correctamente');
+      const { error } = await supabase.auth.signInWithPassword({
+        email: finalEmail,
+        password: password.trim(),
+      });
+
+      if (error) {
+        console.error('Login error:', error);
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('Usuario o contraseña incorrectos. Verifica tus datos.');
+        } else {
+          toast.error('Error de acceso: ' + error.message);
+        }
+      } else {
+        toast.success('Sesión iniciada correctamente');
+      }
     }
     setLoading(false);
   };
@@ -41,10 +61,12 @@ export function Login() {
         <div className="text-center space-y-4">
           <div className="w-20 h-20 bg-editorial-ink text-white rounded-full flex items-center justify-center mx-auto text-3xl font-serif italic mb-6">L</div>
           <h2 className="text-4xl font-serif italic">Luna y Sol</h2>
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Protocolo de Acceso Seguro</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">
+            {isRegistering ? 'Registro de Nueva Cuenta' : 'Protocolo de Acceso Seguro'}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-8">
+        <form onSubmit={handleAuth} className="space-y-8">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 flex items-center gap-2">
               <Mail size={12} /> Usuario o Email
@@ -73,14 +95,24 @@ export function Login() {
             />
           </div>
 
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-editorial-ink text-white py-5 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.4em] transition-all active:scale-95 disabled:opacity-50"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-            ENTRAR AL SISTEMA
-          </button>
+          <div className="space-y-4">
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-editorial-ink text-white py-5 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.4em] transition-all active:scale-95 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : (isRegistering ? <Plus size={16} /> : <LogIn size={16} />)}
+              {isRegistering ? 'CREAR CUENTA' : 'ENTRAR AL SISTEMA'}
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => setIsRegistering(!isRegistering)}
+              className="w-full text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity"
+            >
+              {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Registrate aquí'}
+            </button>
+          </div>
         </form>
 
         <div className="pt-8 border-t border-editorial-ink/5 text-center">
