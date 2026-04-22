@@ -1,16 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300..900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Inter", sans-serif;
-  --font-sans: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-serif: "Public Sans", sans-serif;
+  --font-sans: "Public Sans", sans-serif;
+  --font-mono: ui-monospace, monospace;
   
-  --color-editorial-bg: #F9F7F2;
+  --color-editorial-bg: #FFFFFF;
   --color-editorial-ink: #1A1A1A;
   
   --color-brand-primary: var(--primary);
   --color-brand-sidebar: var(--sidebar-bg);
+}
+
+@layer base {
+  * {
+    font-style: normal !important;
+  }
 }
 
 :root {

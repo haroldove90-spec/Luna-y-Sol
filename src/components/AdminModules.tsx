@@ -319,7 +319,7 @@ export function VehicleAdmin() {
       <div className="flex justify-between items-end border-b border-editorial-ink pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Flotilla</h3>
-          <p className="text-4xl font-serif italic mt-2">Unidades de Transporte</p>
+          <p className="text-4xl font-sans mt-2">Unidades de Transporte</p>
         </div>
         <button 
           onClick={() => setIsEditing({ id: 'new', plate: '', model: '', driver_name: '' })}
@@ -353,14 +353,14 @@ export function VehicleAdmin() {
       {isEditing && (
         <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-10">
-            <h4 className="text-2xl font-serif italic mb-8">Registro de Unidad</h4>
+            <h4 className="text-2xl font-sans mb-8">Registro de Unidad</h4>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Placas</label>
                 <input 
                   required value={isEditing.plate}
                   onChange={(e) => setIsEditing({...isEditing, plate: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -368,7 +368,7 @@ export function VehicleAdmin() {
                 <input 
                   required value={isEditing.model}
                   onChange={(e) => setIsEditing({...isEditing, model: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold focus:border-editorial-ink outline-none"
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -376,7 +376,7 @@ export function VehicleAdmin() {
                 <input 
                   required value={isEditing.driver_name}
                   onChange={(e) => setIsEditing({...isEditing, driver_name: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-serif italic focus:border-editorial-ink outline-none"
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
                 />
               </div>
               <div className="flex gap-4 pt-8">
@@ -451,7 +451,7 @@ export function CustomerAdmin() {
       <div className="flex justify-between items-end border-b border-editorial-ink pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Directorio de Clientes</h3>
-          <p className="text-4xl font-serif italic mt-2">Puntos de Entrega</p>
+          <p className="text-4xl font-sans mt-2">Puntos de Entrega</p>
         </div>
         <button 
           onClick={() => setIsEditing({ id: 'new', name: '', address: '', credit_limit: 0 })}

@@ -707,8 +707,8 @@ function InventoryView() {
                 <tr key={product.id} className="border-b border-editorial-ink/10 hover:bg-stone-50 transition-colors group">
                   <td className="p-6 font-mono text-[9px] opacity-40">{product.sku}</td>
                   <td className="p-6 font-bold uppercase tracking-wider">{product.name}</td>
-                  <td className="p-6 text-right font-serif italic text-lg">{product.stock}</td>
-                  <td className="p-6 text-right font-serif italic text-lg text-stone-400">75</td>
+                  <td className="p-6 text-right font-sans text-lg">{product.stock}</td>
+                  <td className="p-6 text-right font-sans text-lg text-stone-400">75</td>
                   <td className="p-6">
                     <div className="flex justify-center">
                       <div className="border border-editorial-ink px-3 py-1 text-[9px] font-bold uppercase tracking-widest">Óptimo</div>
@@ -724,7 +724,7 @@ function InventoryView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div className="border-l-2 border-editorial-ink pl-10 space-y-6">
             <h4 className="text-xs font-bold uppercase tracking-[0.4em]">Auditoría de Integridad</h4>
-            <p className="font-serif text-2xl leading-snug italic">
+            <p className="font-sans text-2xl leading-snug">
               "El inventario es dinámico. Calculamos el balance móvil como la suma de las cargas despachadas menos las ventas confirmadas."
             </p>
             <div className="bg-white border border-editorial-ink/10 p-6 space-y-4">
