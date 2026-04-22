@@ -322,7 +322,7 @@ export function VehicleAdmin() {
           <p className="text-4xl font-sans mt-2">Unidades de Transporte</p>
         </div>
         <button 
-          onClick={() => setIsEditing({ id: 'new', plate: '', model: '', driver_name: '' })}
+          onClick={() => setIsEditing({ id: 'new', license_plate: '', model: '', assigned_driver_id: '' })}
           className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
         >
           <Plus size={16} /> NUEVA UNIDAD

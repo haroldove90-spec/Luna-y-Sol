@@ -58,6 +58,7 @@ import { ErrorReport } from './components/ErrorReport';
 import { BrandingSettings } from './components/BrandingSettings';
 import { InventoryManager } from './components/InventoryManager';
 import { Login } from './components/Login';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { supabase } from './lib/supabase';
 
 // Helper for Tailwind classes
@@ -206,6 +207,7 @@ export default function App() {
       <Onboarding />
       <ErrorReport />
       <Toaster position="top-right" expand={false} richColors />
+      <PWAInstallPrompt />
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div 
@@ -371,7 +373,7 @@ export default function App() {
         )}
 
         <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
-          {activeTab === 'dashboard' && <DashboardView />}
+          {activeTab === 'dashboard' && <DashboardView onNavigate={setActiveTab} />}
           {activeTab === 'sale' && (
             <NewSaleForm 
               driverId={session?.user?.id}
@@ -451,7 +453,7 @@ function StatCard({ title, value, change, trend, icon }: { title: string, value:
   );
 }
 
-function DashboardView() {
+function DashboardView({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [stats, setStats] = useState({
     todaySales: 0,
     todayCash: 0,
@@ -612,7 +614,7 @@ function DashboardView() {
             ))}
           </div>
           <button 
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => onNavigate('inventory')}
             className="mt-8 py-3 text-[10px] font-bold uppercase tracking-[0.3em] border border-editorial-ink hover:bg-editorial-ink hover:text-white transition-all"
           >
             VER REPORTE DE BODEGA

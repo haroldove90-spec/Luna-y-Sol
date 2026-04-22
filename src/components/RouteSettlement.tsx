@@ -155,7 +155,7 @@ export default function RouteSettlement() {
     setIsSettling(true);
     try {
       const settlementData = {
-        vehicle_id: vehicleId,
+        vehicle_id: currentVehicleId,
         total_sales: totalSalesAmount,
         cash_reported: totalSalesAmount,
         status: 'settled',
