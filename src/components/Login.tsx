@@ -13,17 +13,22 @@ export function Login() {
     setLoading(true);
     
     // Si no tiene @, asumimos que es un nombre de usuario y agregamos el dominio por defecto
-    const finalEmail = userIdentifier.includes('@') 
-      ? userIdentifier 
-      : `${userIdentifier.trim()}@lunaysol.com.mx`;
+    const finalEmail = userIdentifier.trim().includes('@') 
+      ? userIdentifier.trim()
+      : `${userIdentifier.trim().toLowerCase()}@lunaysol.com.mx`;
 
     const { error } = await supabase.auth.signInWithPassword({
       email: finalEmail,
-      password,
+      password: password.trim(),
     });
 
     if (error) {
-      toast.error('Credenciales inválidas: ' + error.message);
+      console.error('Login error:', error);
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Usuario o contraseña incorrectos. Verifica tus datos.');
+      } else {
+        toast.error('Error de acceso: ' + error.message);
+      }
     } else {
       toast.success('Sesión iniciada correctamente');
     }
