@@ -30,9 +30,11 @@ import {
   AlertTriangle,
   Download,
   FileSpreadsheet,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { LoadPrediction } from './components/LoadPrediction';
+import { SalesHistory } from './components/SalesHistory';
 import { 
   BarChart, 
   Bar, 
@@ -129,7 +131,7 @@ import { LogOut, User as UserIcon } from 'lucide-react';
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding' | 'history'>('dashboard');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -269,6 +271,13 @@ export default function App() {
                 onClick={() => handleNavClick('fleet')} 
                 primaryColor={brandConfig.primaryColor}
               />
+              <NavItem 
+                icon={<FileText size={18} />} 
+                label="HISTORIAL" 
+                active={activeTab === 'history'} 
+                onClick={() => handleNavClick('history')} 
+                primaryColor={brandConfig.primaryColor}
+              />
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Configuración</p>
               <NavItem 
                 icon={<Palette size={18} />} 
@@ -340,21 +349,24 @@ export default function App() {
 
         <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
           {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'fleet' && <VehicleAdmin />}
-          {activeTab === 'inventory' && <InventoryManager />}
-          {activeTab === 'products' && <ProductAdmin />}
-          {activeTab === 'customers' && <CustomerAdmin />}
-          {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
           {activeTab === 'sale' && (
             <NewSaleForm 
               onCancel={() => setActiveTab('dashboard')} 
-              onSuccess={(data) => {
-                console.log('Venta exitosa:', data);
-                setActiveTab('dashboard');
-              }} 
+              onSuccess={() => setActiveTab('dashboard')} 
             />
           )}
           {activeTab === 'settlement' && <RouteSettlement />}
+          
+          {userRole === 'admin' && (
+            <>
+              {activeTab === 'fleet' && <VehicleAdmin />}
+              {activeTab === 'inventory' && <InventoryManager />}
+              {activeTab === 'products' && <ProductAdmin />}
+              {activeTab === 'customers' && <CustomerAdmin />}
+              {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
+              {activeTab === 'history' && <SalesHistory />}
+            </>
+          )}
         </div>
 
         {activeTab !== 'sale' && (
@@ -435,22 +447,26 @@ function DashboardView() {
     // Fetch orders for today
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('total')
+      .select('total, created_at')
       .gte('created_at', today);
 
     // Fetch truck inventory for alerts
     const { data: stock, error: stockError } = await supabase
       .from('truck_inventory')
-      .select('quantity')
+      .select('quantity, vehicle_id')
       .lt('quantity', 5);
 
     if (!ordersError && orders) {
-      const sales = orders.reduce((acc, o) => acc + o.total, 0);
+      const sales = orders.reduce((acc, o) => acc + (o.total || 0), 0);
+      
+      // Calculate low stock trucks (unique vehicles with low stock items)
+      const uniqueVehicles = new Set(stock?.map(s => s.vehicle_id));
+
       setStats({
         todaySales: sales,
-        todayCash: sales * 0.7, // Simulated cash portion
+        todayCash: sales * 0.85, // Assuming 85% is cash for this sector
         totalOrders: orders.length,
-        lowStockTrucks: stock?.length || 0
+        lowStockTrucks: uniqueVehicles.size
       });
     }
     setLoading(false);

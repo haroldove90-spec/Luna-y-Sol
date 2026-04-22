@@ -25,6 +25,7 @@ function cn(...inputs: ClassValue[]) {
 // Interfaces
 interface Product {
   id: string;
+  sku: string;
   name: string;
   price: number;
   unit: string;
@@ -80,6 +81,7 @@ export function ProductAdmin() {
     if (!isEditing) return;
     
     const productData = {
+      sku: isEditing.sku,
       name: isEditing.name,
       price: isEditing.price,
       unit: isEditing.unit,
@@ -123,7 +125,7 @@ export function ProductAdmin() {
           <p className="text-4xl font-serif italic mt-2">Productos y Precios</p>
         </div>
         <button 
-          onClick={() => setIsEditing({ id: 'new', name: '', price: 0, unit: 'PZA', category: '' })}
+          onClick={() => setIsEditing({ id: 'new', sku: '', name: '', price: 0, unit: 'PZA', category: '' })}
           className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
         >
           <Plus size={16} /> NUEVO PRODUCTO
@@ -203,14 +205,25 @@ export function ProductAdmin() {
           <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-10 animate-in zoom-in-95 duration-300">
             <h4 className="text-2xl font-serif italic mb-8">Editar Registro</h4>
             <form onSubmit={handleSave} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Nombre del Producto</label>
-                <input 
-                  required
-                  value={isEditing.name}
-                  onChange={(e) => setIsEditing({...isEditing, name: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
-                />
+              <div className="grid grid-cols-3 gap-6">
+                <div className="col-span-1 space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Código / SKU</label>
+                  <input 
+                    required
+                    value={isEditing.sku}
+                    onChange={(e) => setIsEditing({...isEditing, sku: e.target.value})}
+                    className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono uppercase tracking-wider focus:border-editorial-ink outline-none"
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Nombre del Producto</label>
+                  <input 
+                    required
+                    value={isEditing.name}
+                    onChange={(e) => setIsEditing({...isEditing, name: e.target.value})}
+                    className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-2">

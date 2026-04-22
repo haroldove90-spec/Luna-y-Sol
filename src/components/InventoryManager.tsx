@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { Truck, Package, ChevronRight, Save, Loader2, AlertCircle } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export function InventoryManager() {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -10,6 +16,63 @@ export function InventoryManager() {
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<'load' | 'transfer'>('load');
+  const [transferSource, setTransferSource] = useState<any>(null);
+  const [transferDest, setTransferDest] = useState<any>(null);
+  const [transferItems, setTransferItems] = useState<Record<string, number>>({});
+
+  const handleTransfer = async () => {
+    if (!transferSource || !transferDest) return;
+    setSaving(true);
+
+    try {
+      // 1. Fetch current stock for both
+      const { data: sourceStock } = await supabase.from('truck_inventory').select('*').eq('vehicle_id', transferSource.id);
+      const { data: destStock } = await supabase.from('truck_inventory').select('*').eq('vehicle_id', transferDest.id);
+
+      const upsertsSource: any[] = [];
+      const upsertsDest: any[] = [];
+
+      for (const [pId, qty] of Object.entries(transferItems)) {
+        if (qty <= 0) continue;
+        const sItem = sourceStock?.find(s => s.product_id === pId);
+        if (!sItem || sItem.quantity < qty) {
+          toast.error(`Stock insuficiente en origen para ${pId}`);
+          setSaving(false);
+          return;
+        }
+        
+        upsertsSource.push({
+          vehicle_id: transferSource.id,
+          product_id: pId,
+          quantity: sItem.quantity - qty,
+          updated_at: new Date().toISOString()
+        });
+
+        const dItem = destStock?.find(d => d.product_id === pId);
+        upsertsDest.push({
+          vehicle_id: transferDest.id,
+          product_id: pId,
+          quantity: (dItem?.quantity || 0) + qty,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      // Perform updates
+      await Promise.all([
+        supabase.from('truck_inventory').upsert(upsertsSource, { onConflict: 'vehicle_id,product_id' }),
+        supabase.from('truck_inventory').upsert(upsertsDest, { onConflict: 'vehicle_id,product_id' })
+      ]);
+
+      toast.success('Traspaso completado exitosamente');
+      setTransferItems({});
+      setView('load');
+    } catch (err) {
+      toast.error('Error en traspaso: ' + (err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -35,14 +98,28 @@ export function InventoryManager() {
     if (!selectedVehicle) return;
     setSaving(true);
     
+    const { data: existingStock, error: fetchError } = await supabase
+      .from('truck_inventory')
+      .select('product_id, quantity')
+      .eq('vehicle_id', selectedVehicle.id);
+
+    if (fetchError) {
+      toast.error('Error al verificar stock actual');
+      setSaving(false);
+      return;
+    }
+
     const items = Object.entries(assignments)
       .filter(([_, qty]) => qty > 0)
-      .map(([productId, quantity]) => ({
-        vehicle_id: selectedVehicle.id,
-        product_id: productId,
-        quantity,
-        updated_at: new Date().toISOString()
-      }));
+      .map(([productId, quantity]) => {
+        const existing = existingStock?.find(s => s.product_id === productId);
+        return {
+          vehicle_id: selectedVehicle.id,
+          product_id: productId,
+          quantity: (existing?.quantity || 0) + quantity,
+          updated_at: new Date().toISOString()
+        };
+      });
 
     if (items.length === 0) {
       toast.warning('No hay productos seleccionados para cargar');
@@ -68,9 +145,25 @@ export function InventoryManager() {
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
-      <div className="border-b border-editorial-ink pb-6">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Suministros</h3>
-        <p className="text-4xl font-serif italic mt-2">Carga Masiva de Unidades</p>
+      <div className="border-b border-editorial-ink pb-6 flex justify-between items-end">
+        <div>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Suministros</h3>
+          <p className="text-4xl font-serif italic mt-2">Inventario de Unidades</p>
+        </div>
+        <div className="flex border border-editorial-ink p-1">
+          <button 
+            onClick={() => setView('load')}
+            className={cn("px-6 py-2 text-[10px] font-bold uppercase tracking-widest transition-all", view === 'load' ? "bg-editorial-ink text-white" : "hover:bg-stone-100")}
+          >
+            Suministro (Carga)
+          </button>
+          <button 
+            onClick={() => setView('transfer')}
+            className={cn("px-6 py-2 text-[10px] font-bold uppercase tracking-widest transition-all", view === 'transfer' ? "bg-editorial-ink text-white" : "hover:bg-stone-100")}
+          >
+            Traspaso (Ruta)
+          </button>
+        </div>
       </div>
 
       {!selectedVehicle ? (

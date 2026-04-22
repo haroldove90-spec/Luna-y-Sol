@@ -87,21 +87,49 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const [isLocating, setIsLocating] = useState(false);
   const [distanceWarning, setDistanceWarning] = useState<string | null>(null);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+
   useEffect(() => {
     fetchOperationalData();
   }, []);
 
   const fetchOperationalData = async () => {
     setLoadingItems(true);
-    const [cRes, pRes] = await Promise.all([
+    const [cRes, vRes] = await Promise.all([
       supabase.from('customers').select('*'),
-      supabase.from('products').select('*')
+      supabase.from('vehicles').select('*')
     ]);
 
     if (!cRes.error && cRes.data) setCustomers(cRes.data);
-    if (!pRes.error && pRes.data) {
-      // For now, mapping truckStock to 10 for demo if not using real truck_inventory join yet
-      setTruckProducts(pRes.data.map((p: any) => ({ ...p, truckStock: 20 })));
+    if (!vRes.error && vRes.data) {
+      setVehicles(vRes.data);
+      if (vRes.data.length > 0) setSelectedVehicleId(vRes.data[0].id);
+    }
+    setLoadingItems(false);
+  };
+
+  useEffect(() => {
+    if (selectedVehicleId) {
+      fetchTruckStock();
+    }
+  }, [selectedVehicleId]);
+
+  const fetchTruckStock = async () => {
+    setLoadingItems(true);
+    const { data: inv, error } = await supabase
+      .from('truck_inventory')
+      .select('*, products(*)')
+      .eq('vehicle_id', selectedVehicleId);
+
+    if (error) {
+      toast.error('Error al cargar inventario del camión');
+    } else {
+      const productsWithStock = inv.map(item => ({
+        ...item.products,
+        truckStock: item.quantity
+      }));
+      setTruckProducts(productsWithStock);
     }
     setLoadingItems(false);
   };
@@ -207,6 +235,13 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
 
   const handleFinish = () => {
     if (!selectedCustomer || cart.length === 0) return;
+
+    // Bloqueo por Geocerca (Activo)
+    if (distanceWarning) {
+      toast.error('Operación Bloqueada: La ubicación actual no coincide con la del cliente.');
+      return;
+    }
+
     // Check credit limit
     if (total > (selectedCustomer as any).credit_limit) {
       toast.error('Operación Rechazada: Excede límite de crédito del cliente.');
@@ -240,6 +275,24 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
       });
       
       setLastSavedId(id as number);
+
+      // Actualizar inventario en la nube si estamos online
+      if (isOnline && selectedVehicleId) {
+        try {
+          for (const item of cart) {
+            const currentProduct = truckProducts.find(p => p.id === item.id);
+            const newQty = (currentProduct?.truckStock || 0) - item.quantity;
+            
+            await supabase
+              .from('truck_inventory')
+              .update({ quantity: newQty, updated_at: new Date().toISOString() })
+              .eq('vehicle_id', selectedVehicleId)
+              .eq('product_id', item.id);
+          }
+        } catch (err) {
+          console.error('Error actualizando inventario en nube:', err);
+        }
+      }
 
       // Actualizar stock local
       setTruckProducts(prev => {
