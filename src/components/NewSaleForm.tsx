@@ -448,7 +448,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
 
           {!selectedCustomer ? (
             <div className="space-y-3">
-              {MOCK_CUSTOMERS.map(c => (
+              {customers.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
                 <button 
                   key={c.id} 
                   onClick={() => setSelectedCustomer(c)}
@@ -458,6 +458,9 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
                   <p className="text-[10px] font-mono opacity-40">{c.address}</p>
                 </button>
               ))}
+              {customers.length === 0 && !loadingItems && (
+                <p className="text-center py-10 text-[10px] font-bold uppercase tracking-widest opacity-40">No hay clientes registrados</p>
+              )}
             </div>
           ) : (
             <div className="p-6 bg-editorial-ink text-[#D1D1D1] relative group">
@@ -481,7 +484,7 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
             <h3 className="text-xs font-bold uppercase tracking-[0.3em] flex items-center gap-2">
               <Package size={14} className="opacity-40" /> Catálogo en Camión
             </h3>
-            <span className="text-[10px] font-mono opacity-40">{MOCK_PRODUCTS.length} ITEMS</span>
+            <span className="text-[10px] font-mono opacity-40">{truckProducts.length} ITEMS</span>
           </div>
           
           <div className="relative">
