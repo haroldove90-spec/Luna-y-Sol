@@ -16,11 +16,11 @@ $$ language 'plpgsql';
 -- 3. Tables Definition
 
 -- 3.1 Profiles Table (Extends Supabase Auth)
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    full_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'driver')),
-    email TEXT UNIQUE NOT NULL,
+    full_name TEXT,
+    role TEXT DEFAULT 'driver',
+    email TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

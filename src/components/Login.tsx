@@ -25,9 +25,9 @@ export function Login() {
         password: password.trim(),
         options: {
           data: {
-            full_name: userIdentifier.split('@')[0],
-            display_name: userIdentifier.split('@')[0],
-            role: finalEmail.includes('admin') ? 'admin' : 'driver',
+            full_name: userIdentifier.split('@')[0] || 'Usuario',
+            display_name: userIdentifier.split('@')[0] || 'Usuario',
+            role: finalEmail.toLowerCase().includes('admin') ? 'admin' : 'driver',
           }
         }
       });
