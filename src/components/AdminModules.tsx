@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -10,10 +10,13 @@ import {
   Truck, 
   Users,
   MapPin,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -46,25 +49,70 @@ interface Customer {
 }
 
 export function ProductAdmin() {
-  const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Agua Mineral 500ml', price: 1.5, unit: 'PZA', category: 'Bebidas' },
-    { id: '2', name: 'Refresco Cola 1.5L', price: 2.8, unit: 'PZA', category: 'Bebidas' },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      toast.error('Error al cargar productos: ' + error.message);
+    } else {
+      setProducts(data || []);
+    }
+    setLoading(false);
+  };
+
   const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEditing) return;
     
+    const productData = {
+      name: isEditing.name,
+      price: isEditing.price,
+      unit: isEditing.unit,
+      category: isEditing.category,
+      updated_at: new Date().toISOString()
+    };
+
     if (isEditing.id === 'new') {
-      setProducts([...products, { ...isEditing, id: Math.random().toString() }]);
+      const { error } = await supabase.from('products').insert([productData]);
+      if (error) toast.error('Error al crear producto: ' + error.message);
+      else {
+        toast.success('Producto creado');
+        fetchProducts();
+      }
     } else {
-      setProducts(products.map(p => p.id === isEditing.id ? isEditing : p));
+      const { error } = await supabase.from('products').update(productData).eq('id', isEditing.id);
+      if (error) toast.error('Error al actualizar producto: ' + error.message);
+      else {
+        toast.success('Producto actualizado');
+        fetchProducts();
+      }
     }
     setIsEditing(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Seguro que desea eliminar este producto?')) return;
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) toast.error('Error al eliminar: ' + error.message);
+    else {
+      toast.success('Producto eliminado');
+      fetchProducts();
+    }
   };
 
   return (
@@ -116,11 +164,12 @@ export function ProductAdmin() {
                   <td className="p-4">
                     <div className="flex justify-center gap-4">
                       <button onClick={() => setIsEditing(p)} className="hover:text-amber-600"><Edit2 size={14} /></button>
-                      <button onClick={() => setProducts(products.filter(item => item.id !== p.id))} className="hover:text-red-600"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(p.id)} className="hover:text-red-600"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {loading && <tr><td colSpan={5} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> cargando catálogo...</td></tr>}
             </tbody>
           </table>
         </div>
@@ -140,11 +189,12 @@ export function ProductAdmin() {
                 <span className="text-[10px] font-mono opacity-40 uppercase">Unidad: {p.unit}</span>
                 <div className="flex gap-4">
                   <button onClick={() => setIsEditing(p)} className="p-2 border border-editorial-ink/20"><Edit2 size={14} /></button>
-                  <button onClick={() => setProducts(products.filter(item => item.id !== p.id))} className="p-2 border border-red-100 text-red-600"><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(p.id)} className="p-2 border border-red-100 text-red-600"><Trash2 size={14} /></button>
                 </div>
               </div>
             </div>
           ))}
+          {loading && <div className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> cargando...</div>}
         </div>
       </div>
 
@@ -198,21 +248,59 @@ export function ProductAdmin() {
 }
 
 export function VehicleAdmin() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: '1', plate: 'LYS-102', model: 'Isuzu ELF 300', driver_name: 'Sr. Arquitecto' },
-    { id: '2', plate: 'LYS-205', model: 'GMC 3500', driver_name: 'Chofer Especialista' },
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Vehicle | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
+
+  const fetchVehicles = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('vehicles').select('*').order('plate');
+    if (error) toast.error('Error: ' + error.message);
+    else setVehicles(data || []);
+    setLoading(false);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEditing) return;
+
+    const vehicleData = {
+      plate: isEditing.plate,
+      model: isEditing.model,
+      driver_name: isEditing.driver_name,
+      updated_at: new Date().toISOString()
+    };
+
     if (isEditing.id === 'new') {
-      setVehicles([...vehicles, { ...isEditing, id: Math.random().toString() }]);
+      const { error } = await supabase.from('vehicles').insert([vehicleData]);
+      if (error) toast.error(error.message);
+      else {
+        toast.success('Vehículo registrado');
+        fetchVehicles();
+      }
     } else {
-      setVehicles(vehicles.map(v => v.id === isEditing.id ? isEditing : v));
+      const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', isEditing.id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success('Registro actualizado');
+        fetchVehicles();
+      }
     }
     setIsEditing(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar unidad?')) return;
+    const { error } = await supabase.from('vehicles').delete().eq('id', id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success('Unidad eliminada');
+      fetchVehicles();
+    }
   };
 
   return (
@@ -233,8 +321,9 @@ export function VehicleAdmin() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {vehicles.map(v => (
           <div key={v.id} className="bg-white border border-editorial-ink p-8 group relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
               <button onClick={() => setIsEditing(v)} className="p-2 hover:text-amber-600 transition-colors"><Edit2 size={16} /></button>
+              <button onClick={() => handleDelete(v.id)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
             </div>
             <Truck size={24} className="mb-6 opacity-40 text-stone-500" />
             <p className="text-2xl font-bold tracking-tighter mb-2">{v.plate}</p>
@@ -292,21 +381,59 @@ export function VehicleAdmin() {
 }
 
 export function CustomerAdmin() {
-  const [customers, setCustomers] = useState<Customer[]>([
-    { id: '1', name: 'Tienda La Bendición', address: 'Calle 5 #10-20', credit_limit: 5000 },
-    { id: '2', name: 'Minimarket Luna', address: 'Av. Siempre Viva 742', credit_limit: 3500 },
-  ]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Customer | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('customers').select('*').order('name');
+    if (error) toast.error('Error: ' + error.message);
+    else setCustomers(data || []);
+    setLoading(false);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEditing) return;
+
+    const customerData = {
+      name: isEditing.name,
+      address: isEditing.address,
+      credit_limit: isEditing.credit_limit,
+      updated_at: new Date().toISOString()
+    };
+
     if (isEditing.id === 'new') {
-      setCustomers([...customers, { ...isEditing, id: Math.random().toString() }]);
+      const { error } = await supabase.from('customers').insert([customerData]);
+      if (error) toast.error(error.message);
+      else {
+        toast.success('Cliente registrado');
+        fetchCustomers();
+      }
     } else {
-      setCustomers(customers.map(c => c.id === isEditing.id ? isEditing : c));
+      const { error } = await supabase.from('customers').update(customerData).eq('id', isEditing.id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success('Perfil actualizado');
+        fetchCustomers();
+      }
     }
     setIsEditing(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar cliente del archivo?')) return;
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success('Cliente eliminado');
+      fetchCustomers();
+    }
   };
 
   return (
@@ -342,7 +469,7 @@ export function CustomerAdmin() {
             </div>
             <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
                <button onClick={() => setIsEditing(c)} className="p-2 hover:bg-stone-50"><Edit2 size={16} /></button>
-               <button onClick={() => setCustomers(customers.filter(item => item.id !== c.id))} className="p-2 hover:bg-stone-50 hover:text-red-600"><Trash2 size={16} /></button>
+               <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-stone-50 hover:text-red-600"><Trash2 size={16} /></button>
             </div>
           </div>
         ))}

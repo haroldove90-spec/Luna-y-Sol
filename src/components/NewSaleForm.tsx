@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import SignatureCanvas from 'react-signature-canvas';
+import { supabase } from '../lib/supabase';
 import { 
   Users, 
   Search, 
@@ -10,7 +12,10 @@ import {
   ChevronLeft,
   Package,
   CreditCard,
-  X
+  X,
+  FileText,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -67,16 +72,39 @@ import { SaleTicket } from './SaleTicket';
 import { toast } from 'sonner';
 
 export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [truckProducts, setTruckProducts] = useState<Product[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [truckProducts, setTruckProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [isFinishing, setIsFinishing] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showSignature, setShowSignature] = useState(false);
+  const signatureRef = useRef<SignatureCanvas>(null);
   const [currentCoords, setCurrentCoords] = useState<{lat: number, lng: number} | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [distanceWarning, setDistanceWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchOperationalData();
+  }, []);
+
+  const fetchOperationalData = async () => {
+    setLoadingItems(true);
+    const [cRes, pRes] = await Promise.all([
+      supabase.from('customers').select('*'),
+      supabase.from('products').select('*')
+    ]);
+
+    if (!cRes.error && cRes.data) setCustomers(cRes.data);
+    if (!pRes.error && pRes.data) {
+      // For now, mapping truckStock to 10 for demo if not using real truck_inventory join yet
+      setTruckProducts(pRes.data.map((p: any) => ({ ...p, truckStock: 20 })));
+    }
+    setLoadingItems(false);
+  };
 
   const { isOnline, saveOrder } = useOfflineSync();
   const ticketRef = React.useRef<HTMLDivElement>(null);
@@ -177,23 +205,43 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
   const taxes = subtotal * 0.16; // 16% IVA
   const total = subtotal + taxes;
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
     if (!selectedCustomer || cart.length === 0) return;
+    // Check credit limit
+    if (total > (selectedCustomer as any).credit_limit) {
+      toast.error('Operación Rechazada: Excede límite de crédito del cliente.');
+      return;
+    }
+    setShowSignature(true);
+  };
+
+  const confirmSaleWithSignature = async () => {
+    if (!signatureRef.current || signatureRef.current.isEmpty()) {
+      toast.error('Firma Obligatoria: El cliente debe confirmar el recibido.');
+      return;
+    }
+
+    const signatureUrl = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
+    saveOrderWithMetadata(signatureUrl);
+  };
+
+  const saveOrderWithMetadata = async (signatureUrl: string) => {
     setIsFinishing(true);
-    
     try {
       const id = await saveOrder({
-        customerId: selectedCustomer.id,
-        customerName: selectedCustomer.name,
+        customerId: selectedCustomer?.id || '',
+        customerName: selectedCustomer?.name || '',
         items: cart,
         total,
-        coords: currentCoords,
+        signatureUrl,
+        lat: currentCoords?.lat || null,
+        lng: currentCoords?.lng || null,
         distanceWarn: distanceWarning
       });
       
       setLastSavedId(id as number);
 
-      // Actualizar stock local para pruebas de integridad
+      // Actualizar stock local
       setTruckProducts(prev => {
         return prev.map(p => {
           const itemInCart = cart.find(item => item.id === p.id);
@@ -208,23 +256,21 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
       cart.forEach(item => {
         const remaining = item.truckStock - item.quantity;
         if (remaining > 0 && remaining <= item.truckStock * 0.1) {
-          toast.warning(`⚠️ Alerta: Stock bajo en ${item.name} (${remaining} rest.)`);
+          toast.warning(`Stock Crítico: ${item.name} (${remaining} restan en camión)`);
         }
       });
 
       if (isOnline) {
-        toast.success('Venta sincronizada exitosamente con la central.');
+        toast.success(`Orden #${id} sincronizada con la central.`);
       } else {
-        toast.info('Sin conexión. Resguardado localmente para sincronización.');
+        toast.info('Sin conexión. Orden resguardada localmente.');
       }
 
-      // Transition to success state
-      setTimeout(() => {
-        setIsFinishing(false);
-        setShowSuccess(true);
-      }, 1500);
+      setShowSignature(false);
+      setShowSuccess(true);
     } catch (error) {
-      console.error('Error al guardar pedido:', error);
+      toast.error('Falla en procesamiento: ' + (error as Error).message);
+    } finally {
       setIsFinishing(false);
     }
   };
@@ -472,6 +518,64 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
             <CreditCard size={18} />
             Finalizar Pedido
           </button>
+        </div>
+      )}
+
+      {/* Signature Modal */}
+      {showSignature && (
+        <div className="fixed inset-0 bg-editorial-ink/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-8 shadow-2xl space-y-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start border-b border-editorial-ink/5 pb-4">
+              <div>
+                <h4 className="text-xl font-serif italic text-editorial-ink">Prueba de Entrega</h4>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-1">Conformidad del Cliente</p>
+              </div>
+              <button 
+                onClick={() => setShowSignature(false)}
+                className="p-2 hover:bg-stone-100 transition-colors"
+                disabled={isFinishing}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+               <div className="p-4 bg-stone-50 border border-editorial-ink/10 rounded-sm">
+                  <div className="flex justify-between mb-4">
+                    <span className="text-[10px] font-bold uppercase opacity-40">Pedido Total:</span>
+                    <span className="text-sm font-serif italic font-bold">${total.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-editorial-ink/10 pt-4 bg-white">
+                    <SignatureCanvas 
+                      ref={signatureRef}
+                      penColor="black"
+                      canvasProps={{
+                        className: "w-full h-48 cursor-crosshair border-2 border-dashed border-stone-200",
+                        style: { background: '#fff' }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <button 
+                      onClick={() => signatureRef.current?.clear()}
+                      className="text-[9px] font-bold uppercase tracking-widest opacity-40 flex items-center gap-2 hover:opacity-100 transition-opacity"
+                    >
+                      <RotateCcw size={10} /> LIMPIAR
+                    </button>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-20">FIRMAR DENTRO DEL RECUADRO</span>
+                  </div>
+               </div>
+            </div>
+
+            <button 
+              onClick={confirmSaleWithSignature}
+              disabled={isFinishing}
+              className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.4em] flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 transition-all font-mono"
+            >
+              {isFinishing ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              CONFIRMAR Y FINALIZAR
+            </button>
+          </div>
         </div>
       )}
     </div>

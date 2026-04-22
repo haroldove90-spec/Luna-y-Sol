@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { 
   LayoutDashboard, 
@@ -29,7 +29,8 @@ import {
   DollarSign,
   AlertTriangle,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2
 } from 'lucide-react';
 import { LoadPrediction } from './components/LoadPrediction';
 import { 
@@ -120,9 +121,35 @@ import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminMod
 import { Onboarding } from './components/Onboarding';
 import { ErrorReport } from './components/ErrorReport';
 import { BrandingSettings } from './components/BrandingSettings';
+import { InventoryManager } from './components/InventoryManager';
+import { Login } from './components/Login';
+import { supabase } from './lib/supabase';
+import { LogOut, User as UserIcon } from 'lucide-react';
 
 export default function App() {
+  const [session, setSession] = useState<any>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding'>('dashboard');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.email?.includes('admin')) {
+        setUserRole('admin');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user?.email?.includes('admin')) {
+        setUserRole('admin');
+      } else {
+        setUserRole('driver');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isOnline, isSyncing, pendingCount } = useOfflineSync();
 
@@ -150,6 +177,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-editorial-bg text-editorial-ink font-sans overflow-hidden md:border-8 border-white box-border">
+      {!session && <Login />}
       <Onboarding />
       <ErrorReport />
       <Toaster position="top-right" expand={false} richColors />
@@ -209,43 +237,58 @@ export default function App() {
             onClick={() => handleNavClick('settlement')} 
             primaryColor={brandConfig.primaryColor}
           />
-          <NavItem 
-            icon={<Package size={18} />} 
-            label="BODEGA" 
-            active={activeTab === 'inventory'} 
-            onClick={() => handleNavClick('inventory')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Administración</p>
-          <NavItem 
-            icon={<Box size={18} />} 
-            label="PRODUCTOS" 
-            active={activeTab === 'products'} 
-            onClick={() => handleNavClick('products')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <NavItem 
-            icon={<Users size={18} />} 
-            label="CLIENTES" 
-            active={activeTab === 'customers'} 
-            onClick={() => handleNavClick('customers')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <NavItem 
-            icon={<TruckIcon size={18} />} 
-            label="FLOTILLA" 
-            active={activeTab === 'fleet'} 
-            onClick={() => handleNavClick('fleet')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Configuración</p>
-          <NavItem 
-            icon={<Palette size={18} />} 
-            label="BRANDING" 
-            active={activeTab === 'branding'} 
-            onClick={() => handleNavClick('branding')} 
-            primaryColor={brandConfig.primaryColor}
-          />
+          
+          {userRole === 'admin' && (
+            <>
+              <NavItem 
+                icon={<Package size={18} />} 
+                label="BODEGA" 
+                active={activeTab === 'inventory'} 
+                onClick={() => handleNavClick('inventory')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Administración</p>
+              <NavItem 
+                icon={<Box size={18} />} 
+                label="PRODUCTOS" 
+                active={activeTab === 'products'} 
+                onClick={() => handleNavClick('products')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
+                icon={<Users size={18} />} 
+                label="CLIENTES" 
+                active={activeTab === 'customers'} 
+                onClick={() => handleNavClick('customers')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
+                icon={<TruckIcon size={18} />} 
+                label="FLOTILLA" 
+                active={activeTab === 'fleet'} 
+                onClick={() => handleNavClick('fleet')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Configuración</p>
+              <NavItem 
+                icon={<Palette size={18} />} 
+                label="BRANDING" 
+                active={activeTab === 'branding'} 
+                onClick={() => handleNavClick('branding')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+            </>
+          )}
+
+          <div className="pt-8 mt-auto border-t border-white/5 opacity-40 hover:opacity-100 transition-opacity">
+            <NavItem 
+              icon={<LogOut size={18} />} 
+              label="CERRAR SESIÓN" 
+              active={false} 
+              onClick={() => supabase.auth.signOut()} 
+              primaryColor={brandConfig.primaryColor}
+            />
+          </div>
         </nav>
       </aside>
 
@@ -298,7 +341,7 @@ export default function App() {
         <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'fleet' && <VehicleAdmin />}
-          {activeTab === 'inventory' && <InventoryView />}
+          {activeTab === 'inventory' && <InventoryManager />}
           {activeTab === 'products' && <ProductAdmin />}
           {activeTab === 'customers' && <CustomerAdmin />}
           {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
@@ -373,6 +416,46 @@ function StatCard({ title, value, change, trend, icon }: { title: string, value:
 }
 
 function DashboardView() {
+  const [stats, setStats] = useState({
+    todaySales: 0,
+    todayCash: 0,
+    totalOrders: 0,
+    lowStockTrucks: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch orders for today
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('total')
+      .gte('created_at', today);
+
+    // Fetch truck inventory for alerts
+    const { data: stock, error: stockError } = await supabase
+      .from('truck_inventory')
+      .select('quantity')
+      .lt('quantity', 5);
+
+    if (!ordersError && orders) {
+      const sales = orders.reduce((acc, o) => acc + o.total, 0);
+      setStats({
+        todaySales: sales,
+        todayCash: sales * 0.7, // Simulated cash portion
+        totalOrders: orders.length,
+        lowStockTrucks: stock?.length || 0
+      });
+    }
+    setLoading(false);
+  };
+
   const exportToCSV = () => {
     const headers = ['Fecha', 'Ventas', 'Pedidos', 'Efectivo'];
     const data = [
@@ -410,31 +493,31 @@ function DashboardView() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         <StatCard 
           title="Ventas de Hoy" 
-          value="$12,450" 
-          change="+12.5%" 
+          value={`$${stats.todaySales.toLocaleString()}`} 
+          change="+0.0%" 
           trend="up" 
           icon={<ShoppingCart size={20} />} 
         />
         <StatCard 
           title="Efectivo a Recibir" 
-          value="$8,230" 
+          value={`$${stats.todayCash.toLocaleString()}`} 
           change="Auditando" 
           trend="up" 
           icon={<DollarSign size={20} />} 
         />
         <StatCard 
           title="Pedidos Totales" 
-          value="142" 
-          change="+4.3%" 
+          value={stats.totalOrders.toString()} 
+          change="+0" 
           trend="up" 
           icon={<ClipboardList size={20} />} 
         />
         <StatCard 
           title="Alerta de Stock" 
-          value="3 Camiones" 
+          value={`${stats.lowStockTrucks} Unidades`} 
           change="Crítico" 
-          trend="down" 
-          icon={<AlertTriangle size={20} className="text-red-600" />} 
+          trend={stats.lowStockTrucks > 0 ? "down" : "up"} 
+          icon={<AlertTriangle size={20} className={stats.lowStockTrucks > 0 ? "text-red-600" : "text-green-600"} />} 
         />
       </div>
 

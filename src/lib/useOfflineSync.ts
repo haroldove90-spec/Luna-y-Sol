@@ -2,15 +2,42 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type OfflineOrder } from './db';
 
-// Mock Supabase sync function
+import { supabase } from './supabase';
+
+// Real Supabase sync function
 async function syncToSupabase(order: OfflineOrder) {
-  console.log('--- Intentando sincronizar pedido con Supabase ---', order);
+  console.log('--- Sincronizando pedido con Supabase ---', order.id);
   
-  // Simulamos un retraso de red
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  const { data, error } = await supabase
+    .from('orders')
+    .insert([{
+      customer_id: order.customerId,
+      total: order.total,
+      status: 'completed',
+      signature_url: order.signatureUrl,
+      lat: order.lat,
+      lng: order.lng,
+      created_at: order.createdAt
+    }])
+    .select();
+
+  if (error) throw error;
+
+  // Insert items
+  const orderItems = order.items.map(item => ({
+    order_id: data[0].id,
+    product_id: item.id,
+    quantity: item.quantity,
+    price_at_sale: item.price
+  }));
+
+  const { error: itemsError } = await supabase
+    .from('order_items')
+    .insert(orderItems);
+
+  if (itemsError) throw itemsError;
   
-  // Simulamos éxito
-  return { success: true, id: order.id };
+  return { success: true, id: data[0].id };
 }
 
 export function useOfflineSync() {

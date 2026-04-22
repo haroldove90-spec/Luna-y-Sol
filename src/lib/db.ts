@@ -8,6 +8,9 @@ export interface OfflineOrder {
   total: number;
   status: 'pending' | 'synced' | 'failed';
   createdAt: string;
+  signatureUrl?: string;
+  lat?: number | null;
+  lng?: number | null;
   coords?: { lat: number, lng: number } | null;
   distanceWarn?: string | null;
   error?: string;
