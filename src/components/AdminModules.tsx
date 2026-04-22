@@ -85,8 +85,7 @@ export function ProductAdmin() {
       name: isEditing.name,
       price: isEditing.price,
       unit: isEditing.unit,
-      category: isEditing.category,
-      updated_at: new Date().toISOString()
+      category: isEditing.category
     };
 
     if (isEditing.id === 'new') {
@@ -284,8 +283,7 @@ export function VehicleAdmin() {
     const vehicleData = {
       plate: isEditing.plate,
       model: isEditing.model,
-      driver_name: isEditing.driver_name,
-      updated_at: new Date().toISOString()
+      driver_name: isEditing.driver_name
     };
 
     if (isEditing.id === 'new') {
@@ -417,8 +415,7 @@ export function CustomerAdmin() {
     const customerData = {
       name: isEditing.name,
       address: isEditing.address,
-      credit_limit: isEditing.credit_limit,
-      updated_at: new Date().toISOString()
+      credit_limit: isEditing.credit_limit
     };
 
     if (isEditing.id === 'new') {

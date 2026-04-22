@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { Loader2, LogIn, Lock, Mail, Plus } from 'lucide-react';
+import { Loader2, LogIn, Lock, Mail, Plus, Eye, EyeOff } from 'lucide-react';
 
 export function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [userIdentifier, setUserIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,14 +86,23 @@ export function Login() {
             <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 flex items-center gap-2">
               <Lock size={12} /> Contraseña
             </label>
-            <input 
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border-b border-editorial-ink/20 py-3 outline-none focus:border-editorial-ink transition-all font-mono text-sm"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border-b border-editorial-ink/20 py-3 outline-none focus:border-editorial-ink transition-all font-sans text-sm"
+                placeholder="••••••••"
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 opacity-40 hover:opacity-100 transition-opacity"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
