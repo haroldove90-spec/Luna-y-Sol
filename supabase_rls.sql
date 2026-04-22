@@ -13,12 +13,12 @@ ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Choferes pueden insertar sus propias ventas" 
 ON orders FOR INSERT 
 TO authenticated 
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (auth.uid() = driver_id);
 
 CREATE POLICY "Choferes pueden ver sus propias ventas" 
 ON orders FOR SELECT 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (auth.uid() = driver_id);
 
 -- El administrador tiene control total
 CREATE POLICY "Admin tiene control total sobre orders" 
@@ -29,10 +29,15 @@ USING (auth.jwt() ->> 'role' = 'admin');
 
 -- 3. POLÍTICAS PARA 'TRUCK_INVENTORY' (Inventario de Camión)
 -- Los choferes solo ven el inventario de su camión asignado
+-- Necesitamos unir con vehicles para verificar la asignación
 CREATE POLICY "Choferes ven solo su inventario asignado" 
 ON truck_inventory FOR SELECT 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (
+  vehicle_id IN (
+    SELECT id FROM vehicles WHERE assigned_driver_id = auth.uid()
+  )
+);
 
 CREATE POLICY "Admin gestiona todo el inventario" 
 ON truck_inventory FOR ALL 

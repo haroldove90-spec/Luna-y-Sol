@@ -2,6 +2,8 @@ import Dexie, { type Table } from 'dexie';
 
 export interface OfflineOrder {
   id?: number;
+  vehicleId: string;
+  driverId: string;
   customerId: string;
   customerName: string;
   items: any[];
@@ -21,8 +23,8 @@ export class LunaYSolDB extends Dexie {
 
   constructor() {
     super('LunaYSolDB');
-    this.version(1).stores({
-      orders: '++id, customerId, status, createdAt' // Primary key and indexed fields
+    this.version(2).stores({
+      orders: '++id, customerId, vehicleId, driverId, status, createdAt' // Primary key and indexed fields
     });
   }
 }

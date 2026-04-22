@@ -374,6 +374,7 @@ export default function App() {
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'sale' && (
             <NewSaleForm 
+              driverId={session?.user?.id}
               onCancel={() => setActiveTab('dashboard')} 
               onSuccess={() => setActiveTab('dashboard')} 
             />
@@ -610,7 +611,10 @@ function DashboardView() {
               </div>
             ))}
           </div>
-          <button className="mt-8 py-3 text-[10px] font-bold uppercase tracking-[0.3em] border border-editorial-ink hover:bg-editorial-ink hover:text-white transition-all">
+          <button 
+            onClick={() => setActiveTab('inventory')}
+            className="mt-8 py-3 text-[10px] font-bold uppercase tracking-[0.3em] border border-editorial-ink hover:bg-editorial-ink hover:text-white transition-all"
+          >
             VER REPORTE DE BODEGA
           </button>
         </div>

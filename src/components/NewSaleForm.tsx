@@ -73,11 +73,12 @@ const MOCK_PRODUCTS: Product[] = [
 ];
 
 interface NewSaleFormProps {
+  driverId?: string;
   onCancel: () => void;
   onSuccess: (orderData: any) => void;
 }
 
-export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
+export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFormProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [truckProducts, setTruckProducts] = useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -270,6 +271,8 @@ export default function NewSaleForm({ onCancel, onSuccess }: NewSaleFormProps) {
     setIsFinishing(true);
     try {
       const id = await saveOrder({
+        vehicleId: selectedVehicleId,
+        driverId: driverId || '',
         customerId: selectedCustomer?.id || '',
         customerName: selectedCustomer?.name || '',
         items: cart,

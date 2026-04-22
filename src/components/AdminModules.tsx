@@ -35,9 +35,9 @@ interface Product {
 
 interface Vehicle {
   id: string;
-  plate: string;
+  license_plate: string;
   model: string;
-  driver_name: string;
+  assigned_driver_id: string;
 }
 
 interface Customer {
@@ -270,7 +270,7 @@ export function VehicleAdmin() {
 
   const fetchVehicles = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('vehicles').select('*').order('plate');
+    const { data, error } = await supabase.from('vehicles').select('*').order('license_plate');
     if (error) toast.error('Error: ' + error.message);
     else setVehicles(data || []);
     setLoading(false);
@@ -281,9 +281,9 @@ export function VehicleAdmin() {
     if (!isEditing) return;
 
     const vehicleData = {
-      plate: isEditing.plate,
+      license_plate: isEditing.license_plate,
       model: isEditing.model,
-      driver_name: isEditing.driver_name
+      assigned_driver_id: isEditing.assigned_driver_id
     };
 
     if (isEditing.id === 'new') {
@@ -337,12 +337,12 @@ export function VehicleAdmin() {
               <button onClick={() => handleDelete(v.id)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
             </div>
             <Truck size={24} className="mb-6 opacity-40 text-stone-500" />
-            <p className="text-2xl font-bold tracking-tighter mb-2">{v.plate}</p>
+            <p className="text-2xl font-bold tracking-tighter mb-2">{v.license_plate}</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">{v.model}</p>
             <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
               <div>
-                <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
-                <p className="text-sm font-sans">{v.driver_name}</p>
+                <p className="text-[9px] font-mono opacity-40 uppercase">UUID Chofer:</p>
+                <p className="text-[10px] font-mono truncate w-32">{v.assigned_driver_id || 'SIN ASIGNAR'}</p>
               </div>
               <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
             </div>
@@ -358,8 +358,8 @@ export function VehicleAdmin() {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Placas</label>
                 <input 
-                  required value={isEditing.plate}
-                  onChange={(e) => setIsEditing({...isEditing, plate: e.target.value})}
+                  required value={isEditing.license_plate}
+                  onChange={(e) => setIsEditing({...isEditing, license_plate: e.target.value})}
                   className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
                 />
               </div>
@@ -372,11 +372,12 @@ export function VehicleAdmin() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">UUID del Chofer</label>
                 <input 
-                  required value={isEditing.driver_name}
-                  onChange={(e) => setIsEditing({...isEditing, driver_name: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
+                  required value={isEditing.assigned_driver_id}
+                  onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value})}
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono text-[10px] focus:border-editorial-ink outline-none"
+                  placeholder="ID de autenticación del chofer"
                 />
               </div>
               <div className="flex gap-4 pt-8">

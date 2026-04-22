@@ -8,12 +8,14 @@ import { supabase } from './supabase';
 async function syncToSupabase(order: OfflineOrder) {
   console.log('--- Sincronizando pedido con Supabase ---', order.id);
   
-  const { data, error } = await supabase
+  const { data: orderData, error: orderError } = await supabase
     .from('orders')
     .insert([{
       customer_id: order.customerId,
-      total: order.total,
-      status: 'completed',
+      vehicle_id: order.vehicleId,
+      driver_id: order.driverId,
+      total_amount: order.total,
+      status: 'delivered',
       signature_url: order.signatureUrl,
       lat: order.lat,
       lng: order.lng,
@@ -21,14 +23,15 @@ async function syncToSupabase(order: OfflineOrder) {
     }])
     .select();
 
-  if (error) throw error;
+  if (orderError) throw orderError;
 
   // Insert items
   const orderItems = order.items.map(item => ({
-    order_id: data[0].id,
+    order_id: orderData[0].id,
     product_id: item.id,
     quantity: item.quantity,
-    price_at_sale: item.price
+    unit_price: item.price,
+    subtotal: item.price * item.quantity
   }));
 
   const { error: itemsError } = await supabase
@@ -37,7 +40,7 @@ async function syncToSupabase(order: OfflineOrder) {
 
   if (itemsError) throw itemsError;
   
-  return { success: true, id: data[0].id };
+  return { success: true, id: orderData[0].id };
 }
 
 export function useOfflineSync() {

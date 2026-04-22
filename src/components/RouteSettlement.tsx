@@ -29,19 +29,44 @@ export default function RouteSettlement() {
   const [isSettling, setIsSettling] = useState(false);
   const [settled, setSettled] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const vehicleId = 'VEH-001'; 
+  const [currentVehicleId, setCurrentVehicleId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchOperationalData();
+    fetchDriverAssignment();
   }, []);
 
+  const fetchDriverAssignment = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: v, error } = await supabase
+      .from('vehicles')
+      .select('id')
+      .eq('assigned_driver_id', user.id)
+      .single();
+    
+    if (v) {
+      setCurrentVehicleId(v.id);
+    } else {
+      toast.error('No tienes un camión asignado para liquidar.');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentVehicleId) {
+      fetchOperationalData();
+      fetchCloudOrders();
+    }
+  }, [currentVehicleId]);
+
   const fetchOperationalData = async () => {
+    if (!currentVehicleId) return;
     setLoading(true);
     const { data: inv, error: invError } = await supabase
       .from('truck_inventory')
       .select('*, products(name, sku, unit)')
-      .eq('vehicle_id', vehicleId);
+      .eq('vehicle_id', currentVehicleId);
 
     if (invError) {
       toast.error('Error al cargar inventario operacional');
@@ -59,16 +84,13 @@ export default function RouteSettlement() {
 
   const [cloudOrders, setCloudOrders] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchOperationalData();
-    fetchCloudOrders();
-  }, []);
-
   const fetchCloudOrders = async () => {
+    if (!currentVehicleId) return;
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('orders')
-      .select('*, customers(name, credit_limit)')
+      .select('*, order_items(*), customers(name, credit_limit)')
+      .eq('vehicle_id', currentVehicleId)
       .gte('created_at', today);
 
     if (!error && data) {
@@ -215,7 +237,7 @@ export default function RouteSettlement() {
             <PackageCheck size={20} className="text-[#FF6321]" />
             <h3 className="text-xs font-bold uppercase tracking-[0.4em]">Conciliación de Mercancía</h3>
           </div>
-          <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest">UNIDAD: {vehicleId}</p>
+          <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest">UNIDAD: {currentVehicleId || 'S/A'}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

@@ -90,6 +90,9 @@ CREATE TABLE orders (
     driver_id UUID NOT NULL REFERENCES profiles(id),
     total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     status TEXT DEFAULT 'delivered' CHECK (status IN ('delivered', 'pending', 'cancelled')),
+    signature_url TEXT,
+    lat DOUBLE PRECISION,
+    lng DOUBLE PRECISION,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -110,12 +113,34 @@ CREATE TABLE truck_inventory (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vehicle_id UUID NOT NULL REFERENCES vehicles(id),
     product_id UUID NOT NULL REFERENCES products(id),
-    balance INTEGER NOT NULL DEFAULT 0,
+    quantity INTEGER NOT NULL DEFAULT 0,
     last_sync_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(vehicle_id, product_id)
 );
 
--- 4. Triggers for updated_at
+-- 4. Triggers and Functions
+-- Create a profile whenever a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, full_name, email, role)
+    VALUES (
+        NEW.id, 
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'display_name', 'Nuevo Usuario'), 
+        NEW.email, 
+        COALESCE(NEW.raw_user_meta_data->>'role', 'driver')
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to execute the function on signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_products_modtime BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_vehicles_modtime BEFORE UPDATE ON vehicles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
