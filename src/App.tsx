@@ -133,18 +133,42 @@ export default function App() {
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding' | 'history'>('dashboard');
 
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && data) {
+        setUserRole(data.role as 'admin' | 'driver');
+      } else {
+        // Fallback email check
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email?.includes('admin')) {
+          setUserRole('admin');
+        } else {
+          setUserRole('driver');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching role:', err);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user?.email?.includes('admin')) {
-        setUserRole('admin');
+      if (session?.user) {
+        fetchUserRole(session.user.id);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user?.email?.includes('admin')) {
-        setUserRole('admin');
+      if (session?.user) {
+        fetchUserRole(session.user.id);
       } else {
         setUserRole('driver');
       }
