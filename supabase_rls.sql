@@ -20,16 +20,20 @@ ON orders FOR SELECT
 TO authenticated 
 USING (auth.uid() = driver_id);
 
--- El administrador tiene control total
+-- El administrador tiene control total (basado en tabla profiles)
 CREATE POLICY "Admin tiene control total sobre orders" 
 ON orders FOR ALL 
 TO authenticated 
-USING (auth.jwt() ->> 'role' = 'admin');
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
 
 
 -- 3. POLÍTICAS PARA 'TRUCK_INVENTORY' (Inventario de Camión)
 -- Los choferes solo ven el inventario de su camión asignado
--- Necesitamos unir con vehicles para verificar la asignación
 CREATE POLICY "Choferes ven solo su inventario asignado" 
 ON truck_inventory FOR SELECT 
 TO authenticated 
@@ -42,7 +46,12 @@ USING (
 CREATE POLICY "Admin gestiona todo el inventario" 
 ON truck_inventory FOR ALL 
 TO authenticated 
-USING (auth.jwt() ->> 'role' = 'admin');
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
 
 
 -- 4. POLÍTICAS PARA 'PRODUCTS' Y 'CUSTOMERS' (Maestros)
@@ -61,17 +70,27 @@ USING (true);
 CREATE POLICY "Admin CRUD total productos" 
 ON products FOR ALL 
 TO authenticated 
-USING (auth.jwt() ->> 'role' = 'admin');
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
 
 CREATE POLICY "Admin CRUD total clientes" 
 ON customers FOR ALL 
 TO authenticated 
-USING (auth.jwt() ->> 'role' = 'admin');
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
 
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Política de lectura: Todos pueden ver perfiles (para dropdowns y listas)
+-- Política de lectura: Todos pueden ver perfiles (necesario para dropdowns y listado)
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
@@ -83,8 +102,7 @@ CREATE POLICY "Users can update own profile"
 ON public.profiles FOR UPDATE 
 USING (auth.uid() = id);
 
--- POLÍTICA DE ADMIN: Acceso total si el rol es admin. 
--- Usamos una subconsulta simple que aprovecha que SELECT es público (USING true)
+-- POLÍTICA DE ADMIN: Acceso total si el rol es admin.
 DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
 CREATE POLICY "Admins have full access to profiles" 
 ON public.profiles FOR ALL 
@@ -99,7 +117,13 @@ USING (
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Vehicles viewable by everyone" ON public.vehicles FOR SELECT USING (true);
-CREATE POLICY "Admins can manage vehicles" ON public.vehicles FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+CREATE POLICY "Admins can manage vehicles" ON public.vehicles FOR ALL 
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
 
 
 -- 5. FUNCIÓN DE ALERTA DE STOCK BAJO (Edge Function Logic)

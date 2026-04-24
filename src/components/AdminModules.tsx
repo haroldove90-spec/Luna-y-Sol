@@ -339,33 +339,48 @@ export function VehicleAdmin() {
     setLoading(true);
     try {
       const tempId = crypto.randomUUID();
-      const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{
+      // Aseguramos que el select regrese el registro para tener el ID real generado por DB si aplica
+      const { data: inserted, error: insErr } = await supabase
+        .from('profiles')
+        .insert([{
           id: tempId,
           full_name: newDriverData.full_name.trim().toUpperCase(),
           email: newDriverData.email.trim().toLowerCase(),
           role: 'driver'
-      }]).select().single();
+        }])
+        .select()
+        .single();
 
       if (insErr) {
           if (insErr.code === '23505') throw new Error('Este email ya existe en el sistema.');
           throw insErr;
       }
 
+      // IMPORTANTE: Priorizamos el ID que regresa Supabase
       const realId = inserted?.id || tempId;
       const driverName = (inserted?.full_name || newDriverData.full_name).toUpperCase();
       
-      toast.success(`Chofer ${driverName} registrado y sincronizado`);
+      toast.success(`Chofer ${driverName} registrado`);
       
-      // Sincronizar listas antes de asignar
-      await fetchDrivers();
+      // Actualizar catálogo local de inmediato para que el dropdown lo vea
+      const newEntry = { id: realId, full_name: driverName };
+      setDrivers(prev => {
+        const exists = prev.some(d => d.id === realId);
+        if (exists) return prev;
+        return [...prev, newEntry].sort((a,b) => a.full_name.localeCompare(b.full_name));
+      });
+      
+      // Sincronizar en fondo
+      fetchDrivers();
       
       if (isEditing) {
-          setIsEditing(prev => prev ? { ...prev, assigned_driver_id: realId } : null);
+          setIsEditing({ ...isEditing, assigned_driver_id: realId });
       }
       
       setIsAddingDriver(false);
       setNewDriverData({ full_name: '', email: '' });
     } catch (err: any) {
+      console.error('Error al crear chofer rápido:', err);
       toast.error('No se pudo crear el chofer: ' + err.message);
     } finally {
       setLoading(false);
@@ -392,11 +407,10 @@ export function VehicleAdmin() {
       assigned_driver_id: driverId
     };
 
-    // Verificación de integridad local antes de enviar
-    if (driverId && !drivers.some(d => d.id === driverId)) {
-      toast.error('Local error: El chofer asignado no se encuentra en la lista local de conductores activos. Intente refrescar.');
+    // Verificación de integridad local (más permisiva para evitar bloqueos por delay de estado)
+    if (driverId && drivers.length > 0 && !drivers.some(d => d.id === driverId)) {
+      console.warn('Driver selected not in local list, syncing...');
       await fetchDrivers();
-      return;
     }
 
     try {
@@ -887,12 +901,15 @@ export function DriverAdmin() {
 
                           toast.success('Perfil eliminado correctamente');
                           
-                          // 3. Forzar refresco local inmediato Y esperar recarga total
-                          setProfiles(prev => [...prev.filter(item => item.id !== p.id)]);
+                          // Actualización local ATÓMICA e INMEDIATA
+                          setProfiles(prev => prev.filter(item => item.id !== p.id));
+                          
+                          // Recargar de servidor para estar sincronizados al 100%
                           await fetchProfiles();
                         } catch (error: any) {
-                          console.error('Delete error:', error);
+                          console.error('Delete error details:', error);
                           toast.error(error.message || 'Error al intentar eliminar');
+                          fetchProfiles(); // Revertir si falló algo raro
                         }
                       }} 
                       className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"
