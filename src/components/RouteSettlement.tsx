@@ -176,33 +176,33 @@ export default function RouteSettlement() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      const settlementData = {
-        vehicle_id: currentVehicleId,
-        driver_id: user.id,
-        total_sales: totalSalesAmount,
-        cash_reported: totalSalesAmount,
-        status: 'settled'
-      };
-
-      // Try first with driver_id, fallback to user_id if column mismatch
-      const { error } = await supabase
+      // Try first with driver_id
+      const { error: error1 } = await supabase
         .from('route_settlements')
-        .insert([settlementData]);
+        .insert([{
+          vehicle_id: currentVehicleId,
+          driver_id: user.id,
+          total_sales: totalSalesAmount,
+          cash_reported: totalSalesAmount,
+          status: 'settled'
+        }]);
 
-      if (error && error.message.includes('driver_id')) {
-        // Fallback for older schema versions
-        const { error: fallbackError } = await supabase
-          .from('route_settlements')
-          .insert([{
-            vehicle_id: currentVehicleId,
-            user_id: user.id,
-            total_sales: totalSalesAmount,
-            cash_reported: totalSalesAmount,
-            status: 'settled'
-          }]);
-        if (fallbackError) throw fallbackError;
-      } else if (error) {
-        throw error;
+      if (error1) {
+          // Try with user_id as fallback
+          const { error: error2 } = await supabase
+            .from('route_settlements')
+            .insert([{
+              vehicle_id: currentVehicleId,
+              user_id: user.id,
+              total_sales: totalSalesAmount,
+              cash_reported: totalSalesAmount,
+              status: 'settled'
+            }]);
+          
+          if (error2) {
+              // If both fail, report the first error which is more likely to be the "real" one if schema changed
+              throw error1;
+          }
       }
 
       toast.success('Día de ruta cerrado legalmente');
@@ -282,7 +282,17 @@ export default function RouteSettlement() {
   }
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
+    <div className="space-y-12 animate-in fade-in duration-700 p-4 sm:p-0">
+      {userRole === 'admin' && (
+        <div className="flex justify-start">
+          <button 
+            onClick={() => setCurrentVehicleId(null)}
+            className="px-6 py-3 border border-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-editorial-ink hover:text-white transition-all flex items-center gap-2"
+          >
+            <ChevronLeft size={16} /> VOLVER A SELECCIÓN DE UNIDAD
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <div className="bg-editorial-ink text-white p-8 border border-editorial-ink">
           <DollarSign className="text-[#FF6321] mb-6" size={24} />

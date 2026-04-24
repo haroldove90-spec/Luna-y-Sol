@@ -23,7 +23,16 @@ import { toast } from 'sonner';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
+
+// Augment jsPDF type for autotable
+interface jsPDFWithPlugin extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+  lastAutoTable?: {
+    finalY: number;
+  };
+}
 
 export function SalesHistory() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -72,8 +81,8 @@ export function SalesHistory() {
     try {
       const doc = new jsPDF({
         unit: 'mm',
-        format: [80, 200]
-      });
+        format: [80, 250]
+      }) as jsPDFWithPlugin;
 
       const margin = 5;
       let y = 10;
@@ -106,7 +115,7 @@ export function SalesHistory() {
         `$${((item.price || 0) * item.quantity).toFixed(2)}`
       ]);
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: y,
         head: [['ART', 'CT', 'PU', 'TOT']],
         body: tableData,
@@ -121,7 +130,7 @@ export function SalesHistory() {
         margin: { left: margin, right: margin }
       });
 
-      const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
+      const finalY = doc.lastAutoTable?.finalY || y + 40;
       y = finalY + 8;
 
       // Totals

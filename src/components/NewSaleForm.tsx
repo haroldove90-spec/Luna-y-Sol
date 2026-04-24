@@ -34,7 +34,16 @@ import { useReactToPrint } from 'react-to-print';
 import { SaleTicket } from './SaleTicket';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
+
+// Augment jsPDF type for autotable
+interface jsPDFWithPlugin extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+  lastAutoTable?: {
+    finalY: number;
+  };
+}
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -156,8 +165,8 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
     try {
       const doc = new jsPDF({
         unit: 'mm',
-        format: [80, 200]
-      });
+        format: [80, 250] // Increased height to prevent overflow
+      }) as jsPDFWithPlugin;
 
       const margin = 5;
       let y = 10;
@@ -182,11 +191,11 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
       const items = cart.map(item => [
         item.name.substring(0, 15),
         item.quantity,
-        `$${item.price.toFixed(2)}`,
-        `$${(item.price * item.quantity).toFixed(2)}`
+        `$${(item.price || 0).toFixed(2)}`,
+        `$${((item.price || 0) * item.quantity).toFixed(2)}`
       ]);
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: y,
         head: [['ART', 'CT', 'PU', 'TOT']],
         body: items,
@@ -201,7 +210,7 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         margin: { left: margin, right: margin }
       });
 
-      const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
+      const finalY = doc.lastAutoTable?.finalY || y + 40;
       y = finalY + 8;
 
       doc.setFont('helvetica', 'bold');
