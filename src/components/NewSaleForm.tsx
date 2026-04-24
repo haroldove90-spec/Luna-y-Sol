@@ -85,11 +85,12 @@ const MOCK_PRODUCTS: Product[] = [
 
 interface NewSaleFormProps {
   driverId?: string;
+  isAdmin?: boolean;
   onCancel: () => void;
   onSuccess: (orderData: any) => void;
 }
 
-export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFormProps) {
+export default function NewSaleForm({ driverId, isAdmin, onCancel, onSuccess }: NewSaleFormProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [truckProducts, setTruckProducts] = useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -124,10 +125,11 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setIsSettled(true);
-        // Informar pero no bloquear totalmente si es el admin o si necesita corregir
+        setIsSettled(!isAdmin); // If admin, don't hard block
         toast.error('Ruta ya liquidada para el día de hoy', {
-          description: 'Si necesita generar más ventas, el administrador debe eliminar la liquidación previa en el módulo de Historial.',
+          description: isAdmin 
+            ? 'MODO ADMINISTRADOR: Puedes continuar vendiendo pero el chofer ya liquidó esta unidad.'
+            : 'El día de ruta para este vehículo ya fue cerrado. No se pueden generar más ventas hoy.',
           duration: 5000
         });
       } else {

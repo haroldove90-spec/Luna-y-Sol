@@ -51,12 +51,19 @@ export function SalesHistory() {
       .from('orders')
       .select(`
         *,
-        customers(name, address)
+        customers(name, address),
+        profiles:driver_id(full_name)
       `)
       .order('created_at', { ascending: false });
 
     if (error) toast.error('Error al cargar historial: ' + error.message);
-    else setOrders(data || []);
+    else {
+      const formatted = data?.map((o: any) => ({
+        ...o,
+        driver_name: o.profiles?.full_name || 'Desconocido'
+      }));
+      setOrders(formatted || []);
+    }
     setLoading(false);
   };
 
@@ -240,6 +247,7 @@ export function SalesHistory() {
                   <tr className="bg-stone-50 border-b border-editorial-ink/10">
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40">Folio / Fecha</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40">Cliente / Ubicación</th>
+                    <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40">Chofer</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40">Monto Total</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40">Estado</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest opacity-40 text-right">Acciones</th>
@@ -260,6 +268,9 @@ export function SalesHistory() {
                             <p className="text-[10px] opacity-40 uppercase truncate max-w-[200px]">{order.customers?.address}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="p-6">
+                        <p className="text-[10px] font-bold uppercase tracking-widest">{order.driver_name || (order.isLocal ? 'YO (LOCAL)' : 'N/A')}</p>
                       </td>
                       <td className="p-6">
                         <p className="text-lg font-sans font-bold">${order.total?.toFixed(2)}</p>

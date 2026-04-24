@@ -137,37 +137,7 @@ const SALES_DATA = [
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
-  const [activeTab, setActiveTab] = useState<any>(() => {
-    return localStorage.getItem('luna_y_sol_active_tab') || 'dashboard';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('luna_y_sol_active_tab', activeTab);
-  }, [activeTab]);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (!error && data) {
-        setUserRole(data.role as 'admin' | 'driver');
-      } else {
-        // Fallback email check
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email?.includes('admin')) {
-          setUserRole('admin');
-        } else {
-          setUserRole('driver');
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching role:', err);
-    }
-  };
+  const [actualRole, setActualRole] = useState<'admin' | 'driver' | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -183,11 +153,43 @@ export default function App() {
         fetchUserRole(session.user.id);
       } else {
         setUserRole('driver');
+        setActualRole(null);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && data) {
+        const role = data.role as 'admin' | 'driver';
+        setUserRole(role);
+        setActualRole(role);
+      } else {
+        setUserRole('driver');
+      }
+    } catch (err) {
+      console.error('Error fetching role:', err);
+    }
+  };
+
+  const toggleRole = () => {
+    if (actualRole === 'admin') {
+      setUserRole(prev => prev === 'admin' ? 'driver' : 'admin');
+      toast.info(`Cambiado a vista de ${userRole === 'admin' ? 'Chofer' : 'Administrador'}`);
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<any>(() => {
+    return localStorage.getItem('luna_y_sol_active_tab') || 'dashboard';
+  });
 
   useEffect(() => {
     if (userRole === 'driver' && session?.user?.id) {
@@ -295,28 +297,41 @@ export default function App() {
             onClick={() => handleNavClick('dashboard')} 
             primaryColor={brandConfig.primaryColor}
           />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Logística</p>
-          <NavItem 
-            icon={<ShoppingCart size={18} />} 
-            label="NUEVA VENTA" 
-            active={activeTab === 'sale'} 
-            onClick={() => handleNavClick('sale')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <NavItem 
-            icon={<TruckIcon size={18} />} 
-            label="MI UNIDAD" 
-            active={activeTab === 'my-fleet'} 
-            onClick={() => handleNavClick('my-fleet')} 
-            primaryColor={brandConfig.primaryColor}
-          />
-          <NavItem 
-            icon={<ClipboardCheck size={18} />} 
-            label="LIQUIDACIÓN" 
-            active={activeTab === 'settlement'} 
-            onClick={() => handleNavClick('settlement')} 
-            primaryColor={brandConfig.primaryColor}
-          />
+          
+          {userRole === 'driver' && (
+            <>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Ventas</p>
+              <NavItem 
+                icon={<ShoppingCart size={18} />} 
+                label="NUEVA VENTA" 
+                active={activeTab === 'sale'} 
+                onClick={() => handleNavClick('sale')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
+                icon={<Users size={18} />} 
+                label="MIS CLIENTES" 
+                active={activeTab === 'customers'} 
+                onClick={() => handleNavClick('customers')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Logística</p>
+              <NavItem 
+                icon={<TruckIcon size={18} />} 
+                label="MI UNIDAD" 
+                active={activeTab === 'my-fleet'} 
+                onClick={() => handleNavClick('my-fleet')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
+                icon={<ClipboardCheck size={18} />} 
+                label="LIQUIDACIÓN" 
+                active={activeTab === 'settlement'} 
+                onClick={() => handleNavClick('settlement')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+            </>
+          )}
           
           {userRole === 'admin' && (
             <>
@@ -375,6 +390,14 @@ export default function App() {
           )}
 
           <div className="pt-8 mt-auto border-t border-white/5 opacity-40 hover:opacity-100 transition-opacity">
+            {actualRole === 'admin' && (
+              <button 
+                onClick={toggleRole}
+                className="w-full flex items-center gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.2em] hover:bg-white/5 transition-colors text-amber-400"
+              >
+                <RefreshCcw size={18} /> MODO {userRole === 'admin' ? 'DEMO CHOFER' : 'ADMIN'}
+              </button>
+            )}
             <NavItem 
               icon={<LogOut size={18} />} 
               label="CERRAR SESIÓN" 
@@ -434,10 +457,11 @@ export default function App() {
         )}
 
         <div className={cn("flex-grow", activeTab === 'sale' ? "p-0" : "p-10")}>
-          {activeTab === 'dashboard' && <DashboardView onNavigate={setActiveTab} />}
+          {activeTab === 'dashboard' && <DashboardView onNavigate={setActiveTab} userRole={userRole} userId={session?.user?.id} />}
           {activeTab === 'sale' && (
             <NewSaleForm 
               driverId={session?.user?.id}
+              isAdmin={actualRole === 'admin'}
               onCancel={() => setActiveTab('dashboard')} 
               onSuccess={() => setActiveTab('dashboard')} 
             />
@@ -445,17 +469,18 @@ export default function App() {
           {activeTab === 'settlement' && <RouteSettlement />}
           {activeTab === 'my-fleet' && <DriverFleetView driverId={session?.user?.id} />}
           
-          {userRole === 'admin' && (
+          {(actualRole === 'admin' || userRole === 'admin') && (
             <>
               {activeTab === 'fleet' && <VehicleAdmin />}
               {activeTab === 'inventory' && <InventoryManager />}
               {activeTab === 'products' && <ProductAdmin />}
-              {activeTab === 'customers' && <CustomerAdmin />}
+              {activeTab === 'customers' && <CustomerAdmin userRole={userRole} />}
               {activeTab === 'drivers' && <DriverAdmin />}
               {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
               {activeTab === 'history' && <SalesHistory />}
             </>
           )}
+          {userRole === 'driver' && activeTab === 'customers' && <CustomerAdmin userRole="driver" />}
         </div>
 
         {activeTab !== 'sale' && (
@@ -516,7 +541,7 @@ function StatCard({ title, value, change, trend, icon }: { title: string, value:
   );
 }
 
-function DashboardView({ onNavigate }: { onNavigate: (tab: any) => void }) {
+function DashboardView({ onNavigate, userRole, userId }: { onNavigate: (tab: any) => void, userRole: 'admin' | 'driver', userId?: string }) {
   const [stats, setStats] = useState({
     todaySales: 0,
     todayCash: 0,
@@ -527,23 +552,42 @@ function DashboardView({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [userRole, userId]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
     
     // Fetch orders for today
-    const { data: orders, error: ordersError } = await supabase
+    let query = supabase
       .from('orders')
       .select('total, created_at')
       .gte('created_at', today);
 
-    // Fetch truck inventory for alerts
-    const { data: stock, error: stockError } = await supabase
+    if (userRole === 'driver' && userId) {
+      query = query.eq('driver_id', userId);
+    }
+
+    const { data: orders, error: ordersError } = await query;
+
+    // Fetch truck inventory for alerts (global for admin, specific for driver)
+    let stockQuery = supabase
       .from('truck_inventory')
       .select('quantity, vehicle_id')
       .lt('quantity', 5);
+
+    if (userRole === 'driver' && userId) {
+      // Find the vehicle assigned to this driver first
+      const { data: vInfo } = await supabase.from('vehicles').select('id').eq('assigned_driver_id', userId).maybeSingle();
+      if (vInfo) {
+        stockQuery = stockQuery.eq('vehicle_id', vInfo.id);
+      } else {
+        // No vehicle, no stock alerts
+        stockQuery = stockQuery.eq('vehicle_id', 'none'); 
+      }
+    }
+
+    const { data: stock, error: stockError } = await stockQuery;
 
     if (!ordersError && orders) {
       const sales = orders.reduce((acc, o) => acc + (o.total || 0), 0);

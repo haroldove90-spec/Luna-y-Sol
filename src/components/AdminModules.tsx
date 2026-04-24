@@ -271,11 +271,22 @@ export function ProductAdmin() {
   );
 }
 
+interface InventoryItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  products: Product;
+}
+
 export function VehicleAdmin() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<{id: string, full_name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Vehicle | null>(null);
+  const [loadingInventory, setLoadingInventory] = useState<Vehicle | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [invLoading, setInvLoading] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -324,7 +335,6 @@ export function VehicleAdmin() {
       setVehicles(formatted);
     } catch (err: any) {
       console.warn('Fallback fetch activated:', err.message);
-      // Fallback logic for when join fails
       const { data: vehiclesRaw } = await supabase.from('vehicles').select('*').order('license_plate');
       const { data: profilesRaw } = await supabase.from('profiles').select('id, full_name');
       
@@ -341,8 +351,56 @@ export function VehicleAdmin() {
     setLoading(false);
   };
 
+  const fetchVehicleInventory = async (vehicle: Vehicle) => {
+    setInvLoading(true);
+    const [invRes, prodRes] = await Promise.all([
+      supabase.from('truck_inventory').select('*, products(*)').eq('vehicle_id', vehicle.id),
+      supabase.from('products').select('*')
+    ]);
+
+    if (!invRes.error) setInventory(invRes.data || []);
+    if (!prodRes.error) setAllProducts(prodRes.data || []);
+    setInvLoading(false);
+    setLoadingInventory(vehicle);
+  };
+
+  const handleUpdateStock = async (productId: string, quantity: number) => {
+    if (!loadingInventory) return;
+    
+    // Si la cantidad es negativa o 0, tal vez mejor usar validación
+    const qty = Math.max(0, quantity);
+
+    const existing = inventory.find(i => i.product_id === productId);
+
+    if (existing) {
+      const { error } = await supabase
+        .from('truck_inventory')
+        .update({ quantity: qty, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      
+      if (error) toast.error('Error al actualizar: ' + error.message);
+      else {
+        setInventory(prev => prev.map(i => i.id === existing.id ? { ...i, quantity: qty } : i));
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('truck_inventory')
+        .insert([{
+          vehicle_id: loadingInventory.id,
+          product_id: productId,
+          quantity: qty
+        }])
+        .select('*, products(*)')
+        .single();
+      
+      if (error) toast.error('Error al cargar: ' + error.message);
+      else {
+        setInventory(prev => [...prev, data as InventoryItem]);
+      }
+    }
+  };
+
   const openEditModal = async (vehicle: Vehicle | null) => {
-    // Primero asegurar que el catálogo esté fresco
     const { data: latestDrivers } = await supabase
       .from('profiles')
       .select('id, full_name')
@@ -354,7 +412,6 @@ export function VehicleAdmin() {
     if (vehicle && vehicle.id !== 'new') {
         const validDrivers = latestDrivers || drivers;
         const exists = validDrivers.some(d => d.id === vehicle.assigned_driver_id);
-        // Si el ID guardado no existe en el catálogo activo (chofer borrado), lo reseteamos a null localmente
         if (vehicle.assigned_driver_id && !exists) {
             setIsEditing({ ...vehicle, assigned_driver_id: null });
         } else {
@@ -369,7 +426,6 @@ export function VehicleAdmin() {
     e.preventDefault();
     if (!isEditing) return;
 
-    // Clean data for Supabase
     const driverId = (isEditing.assigned_driver_id && typeof isEditing.assigned_driver_id === 'string' && isEditing.assigned_driver_id.trim() !== '') 
       ? isEditing.assigned_driver_id 
       : null;
@@ -395,10 +451,10 @@ export function VehicleAdmin() {
     } catch (error: any) {
       console.error('Vehicle sync error:', error);
       if (error.code === '23503') {
-        toast.error(`Error: El chofer con ID ${driverId?.substring(0,8)}... no es válido. Seleccione uno de la lista actualizada.`);
+        toast.error(`Error: El chofer con ID ${driverId?.substring(0,8)}... no es válido.`);
         fetchDrivers();
       } else if (error.code === '23505') {
-        toast.error('Error: Las placas ya están registradas en otra unidad.');
+        toast.error('Error: Las placas ya están registradas.');
       } else {
         toast.error('Error al guardar: ' + (error.message || 'Error de base de datos'));
       }
@@ -440,24 +496,83 @@ export function VehicleAdmin() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {vehicles.map(v => (
-          <div key={v.id} className="bg-white border border-editorial-ink p-8 group relative overflow-hidden">
+          <div key={v.id} className="bg-white border border-editorial-ink p-8 group relative overflow-hidden flex flex-col justify-between min-h-[220px]">
             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
               <button onClick={() => openEditModal(v)} className="p-2 hover:text-amber-600 transition-colors"><Edit2 size={16} /></button>
               <button onClick={() => handleDelete(v.id)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
             </div>
-            <Truck size={24} className="mb-6 opacity-40 text-stone-500" />
-            <p className="text-2xl font-bold tracking-tighter mb-2">{v.license_plate}</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">{v.model}</p>
-            <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
-              <div>
-                <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider">{v.driver?.full_name || 'SIN ASIGNAR'}</p>
+            
+            <div>
+              <Truck size={24} className="mb-6 opacity-40 text-stone-500" />
+              <p className="text-2xl font-bold tracking-tighter mb-2">{v.license_plate}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">{v.model}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
+                <div>
+                  <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider">{v.driver?.full_name || 'SIN ASIGNAR'}</p>
+                </div>
+                <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
               </div>
-              <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
+              
+              <button 
+                onClick={() => fetchVehicleInventory(v)}
+                className="w-full py-3 bg-stone-50 border border-editorial-ink/5 text-[9px] font-bold uppercase tracking-widest hover:bg-stone-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <Package size={14} /> GESTIONAR INVENTARIO
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {loadingInventory && (
+        <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="bg-white border-2 border-editorial-ink w-full max-w-2xl h-[80vh] flex flex-col p-10">
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h4 className="text-2xl font-serif italic">Carga de Inventario</h4>
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-1">Unidad: {loadingInventory.license_plate}</p>
+                </div>
+                <button onClick={() => setLoadingInventory(null)} className="p-2 hover:bg-stone-100"><X size={20} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                {allProducts.map(prod => {
+                  const invItem = inventory.find(i => i.product_id === prod.id);
+                  return (
+                    <div key={prod.id} className="flex items-center justify-between p-4 border border-editorial-ink/5 bg-stone-50/50">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-tight">{prod.name}</p>
+                        <p className="text-[10px] font-mono opacity-40">SKU: {prod.sku}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="number"
+                          defaultValue={invItem?.quantity || 0}
+                          onBlur={(e) => handleUpdateStock(prod.id, parseInt(e.target.value) || 0)}
+                          className="w-20 bg-white border border-editorial-ink/10 py-2 px-3 text-center font-mono font-bold text-xs outline-none focus:border-editorial-ink"
+                        />
+                        <span className="text-[9px] font-bold opacity-40 uppercase">{prod.unit}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-8 mt-4 border-t border-editorial-ink/10">
+                <button 
+                  onClick={() => setLoadingInventory(null)}
+                  className="w-full bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest"
+                >
+                  CERRAR GESTIÓN
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {isEditing && (
         <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -505,10 +620,12 @@ export function VehicleAdmin() {
   );
 }
 
-export function CustomerAdmin() {
+export function CustomerAdmin({ userRole }: { userRole?: 'admin' | 'driver' }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Customer | null>(null);
+
+  const canEdit = userRole === 'admin';
 
   useEffect(() => {
     fetchCustomers();
@@ -524,7 +641,7 @@ export function CustomerAdmin() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEditing) return;
+    if (!isEditing || !canEdit) return;
 
     const customerData = {
       name: isEditing.name,
@@ -551,6 +668,7 @@ export function CustomerAdmin() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEdit) return;
     if (!confirm('¿Eliminar cliente del archivo?')) return;
     const { error } = await supabase.from('customers').delete().eq('id', id);
     if (error) toast.error(error.message);
@@ -565,14 +683,16 @@ export function CustomerAdmin() {
       <div className="flex justify-between items-end border-b border-editorial-ink pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Directorio de Clientes</h3>
-          <p className="text-4xl font-sans mt-2">Puntos de Entrega</p>
+          <p className="text-4xl font-sans mt-2">{userRole === 'driver' ? 'Mis Clientes' : 'Puntos de Entrega'}</p>
         </div>
-        <button 
-          onClick={() => setIsEditing({ id: 'new', name: '', address: '', credit_limit: 0 })}
-          className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
-        >
-          <Plus size={16} /> NUEVO CLIENTE
-        </button>
+        {canEdit && (
+          <button 
+            onClick={() => setIsEditing({ id: 'new', name: '', address: '', credit_limit: 0 })}
+            className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={16} /> NUEVO CLIENTE
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -591,15 +711,23 @@ export function CustomerAdmin() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-               <button onClick={() => setIsEditing(c)} className="p-2 hover:bg-stone-50"><Edit2 size={16} /></button>
-               <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-stone-50 hover:text-red-600"><Trash2 size={16} /></button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button onClick={() => setIsEditing(c)} className="p-2 hover:bg-stone-50"><Edit2 size={16} /></button>
+                 <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-stone-50 hover:text-red-600"><Trash2 size={16} /></button>
+              </div>
+            )}
           </div>
         ))}
+        {customers.length === 0 && !loading && (
+           <div className="p-20 text-center border border-dashed border-stone-200">
+             <Users size={40} className="mx-auto opacity-10 mb-4" />
+             <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">No hay clientes en el registro</p>
+           </div>
+        )}
       </div>
 
-      {isEditing && (
+      {isEditing && canEdit && (
         <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-10">
             <h4 className="text-2xl font-serif italic mb-8">Datos del Cliente</h4>
