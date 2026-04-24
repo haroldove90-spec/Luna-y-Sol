@@ -62,6 +62,7 @@ import { Onboarding } from './components/Onboarding';
 import { ErrorReport } from './components/ErrorReport';
 import { BrandingSettings } from './components/BrandingSettings';
 import { InventoryManager } from './components/InventoryManager';
+import { DriverFleetView } from './components/DriverFleetView';
 import { Login } from './components/Login';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { supabase } from './lib/supabase';
@@ -269,6 +270,13 @@ export default function App() {
             primaryColor={brandConfig.primaryColor}
           />
           <NavItem 
+            icon={<TruckIcon size={18} />} 
+            label="MI UNIDAD" 
+            active={activeTab === 'my-fleet'} 
+            onClick={() => handleNavClick('my-fleet')} 
+            primaryColor={brandConfig.primaryColor}
+          />
+          <NavItem 
             icon={<ClipboardCheck size={18} />} 
             label="LIQUIDACIÓN" 
             active={activeTab === 'settlement'} 
@@ -364,6 +372,7 @@ export default function App() {
                    activeTab === 'products' ? 'Catálogo Maestro' :
                    activeTab === 'customers' ? 'Directorio Clientes' :
                    activeTab === 'branding' ? 'Imagen Corporativa' :
+                   activeTab === 'my-fleet' ? 'Estatus de Unidad' :
                    'Liquidación de Ruta'}
                 </h3>
               </div>
@@ -400,6 +409,7 @@ export default function App() {
             />
           )}
           {activeTab === 'settlement' && <RouteSettlement />}
+          {activeTab === 'my-fleet' && <DriverFleetView driverId={session?.user?.id} />}
           
           {userRole === 'admin' && (
             <>
