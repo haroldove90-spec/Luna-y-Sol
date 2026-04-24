@@ -109,21 +109,54 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
 
+  const [isSettled, setIsSettled] = useState(false);
+
+  const checkSettlement = async (vId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('route_settlements')
+      .select('id')
+      .eq('vehicle_id', vId)
+      .gte('created_at', today)
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      setIsSettled(true);
+      toast.error('Unidad Liquidada: El día de ruta para este vehículo ya fue cerrado.');
+    } else {
+      setIsSettled(false);
+    }
+  };
+
   useEffect(() => {
     fetchOperationalData();
   }, []);
 
   const fetchOperationalData = async () => {
     setLoadingItems(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const [cRes, vRes] = await Promise.all([
       supabase.from('customers').select('*'),
       supabase.from('vehicles').select('*')
     ]);
 
     if (!cRes.error && cRes.data) setCustomers(cRes.data);
+    
     if (!vRes.error && vRes.data) {
       setVehicles(vRes.data);
-      if (vRes.data.length > 0) setSelectedVehicleId(vRes.data[0].id);
+      
+      // Auto-assign vehicle if user is a driver
+      if (user) {
+        const myVehicle = vRes.data.find(v => v.driver_id === user.id || v.assigned_driver_id === user.id);
+        if (myVehicle) {
+          setSelectedVehicleId(myVehicle.id);
+          checkSettlement(myVehicle.id);
+        } else if (vRes.data.length > 0) {
+          setSelectedVehicleId(vRes.data[0].id);
+          checkSettlement(vRes.data[0].id);
+        }
+      }
     }
     setLoadingItems(false);
   };
@@ -131,6 +164,7 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   useEffect(() => {
     if (selectedVehicleId) {
       fetchTruckStock();
+      checkSettlement(selectedVehicleId);
     }
   }, [selectedVehicleId]);
 
@@ -323,6 +357,11 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
 
   const handleFinish = () => {
     if (!selectedCustomer || cart.length === 0) return;
+
+    if (isSettled) {
+      toast.error('Ruta ya liquidada para el día de hoy. No se permiten más ventas.');
+      return;
+    }
 
     // Bloqueo por Geocerca (Activo)
     if (distanceWarning) {

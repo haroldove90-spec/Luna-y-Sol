@@ -14,7 +14,8 @@ import {
   RefreshCcw,
   ChevronRight,
   ChevronLeft,
-  Truck
+  Truck,
+  FileDown
 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
@@ -23,6 +24,16 @@ import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+import { jsPDF } from 'jspdf';
+import autoTable, { UserOptions } from 'jspdf-autotable';
+
+// Augment jsPDF type for autotable
+interface jsPDFWithPlugin extends jsPDF {
+  lastAutoTable?: {
+    finalY: number;
+  };
 }
 
 export default function RouteSettlement() {
@@ -203,43 +214,76 @@ export default function RouteSettlement() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // Try different column names for driver/user
-      let insertError: any = null;
-      
-      const attemptInsert = async (colName: string) => {
-        const { error } = await supabase
-          .from('route_settlements')
-          .insert([{
-            vehicle_id: currentVehicleId,
-            [colName]: user.id,
-            total_sales: totalSalesAmount,
-            cash_reported: totalSalesAmount,
-            status: 'settled'
-          }]);
-        return error;
-      };
+      // 1. Guardar la liquidación en la tabla route_settlements
+      // Omitimos driver_id ya que causa error de esquema según el reporte
+      const { error: settlementError } = await supabase
+        .from('route_settlements')
+        .insert([{
+          vehicle_id: currentVehicleId,
+          total_sales: totalSalesAmount,
+          cash_reported: totalSalesAmount,
+          status: 'settled'
+        }]);
 
-      // Try driver_id first
-      insertError = await attemptInsert('driver_id');
-      
-      if (insertError) {
-        // Try user_id second
-        const error2 = await attemptInsert('user_id');
-        if (error2) {
-          // Try assigned_driver_id third (just in case)
-          const error3 = await attemptInsert('assigned_driver_id');
-          if (error3) {
-            throw insertError; // Report the initial error if all fail
-          }
+      if (settlementError) {
+        console.error('Settlement Error:', settlementError);
+        throw new Error('Error al guardar liquidación en el servidor.');
+      }
+
+      // 2. Sincronizar Inventario: Actualizar truck_inventory con el stock físico reportado
+      for (const item of reconciliationData) {
+        const { error: invError } = await supabase
+          .from('truck_inventory')
+          .update({ quantity: item.physicalStock })
+          .eq('vehicle_id', currentVehicleId)
+          .eq('product_id', item.id);
+        
+        if (invError) {
+          console.warn(`Error al actualizar stock para ${item.name}:`, invError);
         }
       }
 
-      toast.success('Día de ruta cerrado legalmente');
+      // 3. Marcar órdenes locales como sincronizadas (opcional, si hay sistema offline)
+      // Por ahora confiamos en que el estado de 'settled' bloquea el flujo
+
+      toast.success('Día de ruta cerrado y stock sincronizado');
       setSettled(true);
-    } catch (error) {
-      toast.error('Falla en liquidación: ' + (error as Error).message);
+    } catch (error: any) {
+      toast.error('Falla en liquidación: ' + (error.message || 'Error desconocido'));
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const generateSettlementPDF = () => {
+    try {
+      const doc = new jsPDF() as jsPDFWithPlugin;
+      doc.setFontSize(18);
+      doc.text('LIQUIDACIÓN DE RUTA', 105, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 30);
+      doc.text(`Unidad: ${currentVehicleId}`, 20, 35);
+      doc.text(`Total Liquidado: $${totalSalesAmount.toFixed(2)}`, 20, 40);
+
+      const tableData = reconciliationData.map(item => [
+        item.name,
+        item.initialStock + item.loads,
+        item.sales,
+        item.theoreticalStock,
+        item.physicalStock,
+        item.difference
+      ]);
+
+      autoTable(doc, {
+        startY: 50,
+        head: [['Producto', 'Cargado', 'Ventas', 'Teórico', 'Físico', 'Dif']],
+        body: tableData
+      });
+
+      doc.save(`Liquidacion_${currentVehicleId}_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('Resumen de liquidación descargado');
+    } catch (err) {
+      toast.error('Error al generar PDF de liquidación');
     }
   };
 
@@ -300,10 +344,16 @@ export default function RouteSettlement() {
              <span>FOLIO:</span>
              <span className="font-mono">LIQ-{new Date().toISOString().split('T')[0]}</span>
            </div>
-           <div className="flex justify-between text-xs font-bold">
+           <div className="flex justify-between text-xs font-bold mb-6">
              <span>TOTAL LIQUIDADO:</span>
              <span className="font-mono font-serif italic text-lg">${totalSalesAmount.toFixed(2)}</span>
            </div>
+           <button 
+             onClick={generateSettlementPDF}
+             className="w-full py-4 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-3"
+           >
+             <FileDown size={16} /> DESCARGAR RESUMEN PDF
+           </button>
         </div>
         <button onClick={() => setSettled(false)} className="mt-12 text-[10px] font-bold uppercase tracking-[0.4em] underline hover:text-stone-500">Volver</button>
       </div>
