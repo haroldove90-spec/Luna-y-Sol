@@ -124,7 +124,7 @@ export function SalesHistory() {
       y = (doc as any).lastAutoTable.finalY + 8;
 
       // Totals
-      const total = order.total_amount || order.total || 0;
+      const total = order.total || 0;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text(`TOTAL: $${total.toFixed(2)}`, 75, y, { align: 'right' });
@@ -148,7 +148,7 @@ export function SalesHistory() {
 
     if (editingOrder.isLocal) {
         await db.orders.update(parseInt(editingOrder.id.replace('LOCAL-', '')), {
-            total: editingOrder.total_amount
+            total: editingOrder.total
         });
         toast.success('Venta local actualizada');
         setEditingOrder(null);
@@ -157,7 +157,7 @@ export function SalesHistory() {
 
     const { error } = await supabase
         .from('orders')
-        .update({ total: editingOrder.total_amount })
+        .update({ total: editingOrder.total })
         .eq('id', editingOrder.id);
     
     if (error) toast.error('Error al actualizar: ' + error.message);
@@ -175,17 +175,17 @@ export function SalesHistory() {
     const local = localOrders.map(o => ({
       ...o,
       id: `LOCAL-${o.id}`,
-      total_amount: o.total,
+      total: o.total,
       created_at: o.createdAt,
       customers: { name: o.customerName, address: o.status === 'failed' ? `Error: ${o.error}` : 'Resguardado Localmente' },
       isLocal: true,
       syncStatus: o.status
     }));
     
-    // Normalize remote orders to use total_amount property for the UI
+    // Normalize remote orders
     const remote = orders.map(o => ({
       ...o,
-      total_amount: o.total
+      total: o.total
     }));
     
     // Combine and sort by date
@@ -252,7 +252,7 @@ export function SalesHistory() {
                         </div>
                       </td>
                       <td className="p-6">
-                        <p className="text-lg font-sans font-bold">${order.total_amount?.toFixed(2)}</p>
+                        <p className="text-lg font-sans font-bold">${order.total?.toFixed(2)}</p>
                       </td>
                       <td className="p-6">
                         {order.isLocal ? (
@@ -306,7 +306,12 @@ export function SalesHistory() {
       </div>
 
       {selectedOrder && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-[120] animate-in slide-in-from-right duration-500 flex flex-col">
+        <>
+          <div 
+            className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[115] animate-in fade-in duration-300" 
+            onClick={() => setSelectedOrder(null)}
+          />
+          <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-[120] animate-in slide-in-from-right duration-500 flex flex-col">
           <div className="p-8 border-b border-stone-100 flex items-center justify-between">
             <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Detalles de Venta</h3>
             <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
@@ -388,9 +393,10 @@ export function SalesHistory() {
             </button>
           </div>
         </div>
-      )}
+      </>
+    )}
 
-      {editingOrder && (
+    {editingOrder && (
         <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-300 border-2 border-editorial-ink">
             <h4 className="text-xl font-serif italic mb-6">Editar Importe de Venta</h4>
@@ -401,8 +407,8 @@ export function SalesHistory() {
                         type="number"
                         step="0.01"
                         required
-                        value={editingOrder.total_amount}
-                        onChange={(e) => setEditingOrder({...editingOrder, total_amount: parseFloat(e.target.value)})}
+                        value={editingOrder.total || 0}
+                        onChange={(e) => setEditingOrder({...editingOrder, total: parseFloat(e.target.value)})}
                         className="w-full border-b-2 border-stone-200 py-3 text-2xl font-sans font-bold focus:border-editorial-ink outline-none"
                     />
                 </div>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
+import { format } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { 
   Users, 
@@ -410,32 +411,47 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
 
   if (showSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 animate-in zoom-in-95 duration-500 bg-editorial-bg">
-        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-green-100">
-          <CheckCircle2 className="text-white" size={40} />
-        </div>
-        <h2 className="text-3xl font-sans font-bold text-center mb-2">Venta Completada</h2>
-        <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mb-12">Referencia: #{lastSavedId}</p>
-        
-        <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
-          <button 
-                onClick={() => generateTicketPDF({})}
-                className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"
-          >
-            <FileDown size={18} /> DESCARGAR TICKET PDF
-          </button>
-          <button 
-            onClick={() => handlePrint()}
-            className="w-full py-5 border border-stone-200 text-stone-600 text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all"
-          >
-            <Printer size={18} /> IMPRIMIR (TÉRMICA)
-          </button>
+      <div 
+        className="fixed inset-0 bg-editorial-bg z-50 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-500 overflow-y-auto cursor-pointer"
+        onClick={() => onSuccess({})}
+      >
+        <div 
+          className="flex flex-col items-center justify-center w-full max-w-lg cursor-default"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button 
             onClick={() => onSuccess({})}
-            className="w-full py-5 border border-editorial-ink text-editorial-ink text-[10px] font-bold uppercase tracking-[0.3em] active:scale-95 transition-all"
+            className="absolute top-8 right-8 p-3 hover:bg-stone-100 rounded-full transition-colors"
           >
-            VOLVER AL INICIO
+            <X size={32} strokeWidth={1} className="text-stone-400" />
           </button>
+
+          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-green-100">
+            <CheckCircle2 className="text-white" size={40} />
+          </div>
+          <h2 className="text-3xl font-sans font-bold text-center mb-2">Venta Completada</h2>
+          <p className="text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mb-12">Referencia: #{lastSavedId}</p>
+          
+          <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
+            <button 
+                  onClick={() => generateTicketPDF({})}
+                  className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"
+            >
+              <FileDown size={18} /> DESCARGAR TICKET PDF
+            </button>
+            <button 
+              onClick={() => handlePrint()}
+              className="w-full py-5 border border-stone-200 text-stone-600 text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all"
+            >
+              <Printer size={18} /> IMPRIMIR (TÉRMICA)
+            </button>
+            <button 
+              onClick={() => onSuccess({})}
+              className="w-full py-5 border border-editorial-ink text-editorial-ink text-[10px] font-bold uppercase tracking-[0.3em] active:scale-95 transition-all"
+            >
+              VOLVER AL INICIO
+            </button>
+          </div>
         </div>
 
         {/* Hidden ticket for printing */}

@@ -15,10 +15,9 @@ $$ language 'plpgsql';
 
 -- 3. Tables Definition
 
--- 3.1 Profiles Table (Extends Supabase Auth)
+-- 3.1 Profiles Table (Managed by App and Auth)
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
     role TEXT DEFAULT 'driver',
     email TEXT UNIQUE,
@@ -137,15 +136,14 @@ CREATE TABLE route_settlements (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (user_id, full_name, email, role)
+    INSERT INTO public.profiles (id, full_name, email, role)
     VALUES (
         NEW.id, 
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'display_name', NEW.email), 
         NEW.email, 
         COALESCE(NEW.raw_user_meta_data->>'role', 'driver')
     )
-    ON CONFLICT (email) DO UPDATE SET
-        user_id = EXCLUDED.user_id,
+    ON CONFLICT (id) DO UPDATE SET
         full_name = EXCLUDED.full_name,
         role = EXCLUDED.role;
     RETURN NEW;

@@ -45,10 +45,13 @@ export function PWAInstallPrompt() {
             <div className="absolute -right-12 -top-12 w-32 h-32 bg-[#FF6321] opacity-10 rounded-full blur-3xl group-hover:opacity-20 transition-opacity" />
             
             <button 
-              onClick={() => setIsVisible(false)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsVisible(false);
+              }}
+              className="absolute top-1 right-1 p-5 text-white/40 hover:text-white transition-colors z-30 touch-manipulation"
             >
-              <X size={18} />
+              <X size={22} />
             </button>
 
             <div className="flex gap-4 items-start relative z-10">
