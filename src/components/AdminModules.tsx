@@ -287,6 +287,7 @@ export function VehicleAdmin() {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name')
+      .eq('role', 'driver')
       .order('full_name'); 
     if (!error && data) setDrivers(data);
   };
@@ -346,6 +347,11 @@ export function VehicleAdmin() {
     }
   };
 
+  const openEditModal = (vehicle: Vehicle | null) => {
+    fetchDrivers();
+    setIsEditing(vehicle);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEditing) return;
@@ -392,7 +398,7 @@ export function VehicleAdmin() {
           <p className="text-4xl font-sans mt-2">Unidades de Transporte</p>
         </div>
         <button 
-          onClick={() => setIsEditing({ id: 'new', license_plate: '', model: '', assigned_driver_id: '' })}
+          onClick={() => openEditModal({ id: 'new', license_plate: '', model: '', assigned_driver_id: '' })}
           className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
         >
           <Plus size={16} /> NUEVA UNIDAD
@@ -403,7 +409,7 @@ export function VehicleAdmin() {
         {vehicles.map(v => (
           <div key={v.id} className="bg-white border border-editorial-ink p-8 group relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-              <button onClick={() => setIsEditing(v)} className="p-2 hover:text-amber-600 transition-colors"><Edit2 size={16} /></button>
+              <button onClick={() => openEditModal(v)} className="p-2 hover:text-amber-600 transition-colors"><Edit2 size={16} /></button>
               <button onClick={() => handleDelete(v.id)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
             </div>
             <Truck size={24} className="mb-6 opacity-40 text-stone-500" />
@@ -780,10 +786,14 @@ export function DriverAdmin() {
                     <button 
                       onClick={async () => {
                         if (confirm('¿Eliminar perfil de personal?')) {
+                          // First, nullify any vehicle assignments to prevent issues (DB handles this but UI needs sync)
+                          await supabase.from('vehicles').update({ assigned_driver_id: null }).eq('assigned_driver_id', p.id);
+                          
                           const { error } = await supabase.from('profiles').delete().eq('id', p.id);
-                          if (error) toast.error(error.message);
-                          else {
-                            toast.success('Perfil eliminado');
+                          if (error) {
+                            toast.error('Error al eliminar: ' + error.message);
+                          } else {
+                            toast.success('Perfil eliminado del sistema');
                             fetchProfiles();
                           }
                         }
