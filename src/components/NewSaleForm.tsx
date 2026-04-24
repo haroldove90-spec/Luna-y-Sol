@@ -34,12 +34,10 @@ import { useReactToPrint } from 'react-to-print';
 import { SaleTicket } from './SaleTicket';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import { UserOptions } from 'jspdf-autotable';
+import autoTable, { UserOptions } from 'jspdf-autotable';
 
 // Augment jsPDF type for autotable
 interface jsPDFWithPlugin extends jsPDF {
-  autoTable: (options: UserOptions) => jsPDF;
   lastAutoTable?: {
     finalY: number;
   };
@@ -196,7 +194,7 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         `$${((item.price || 0) * item.quantity).toFixed(2)}`
       ]);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: y,
         head: [['ART', 'CT', 'PU', 'TOT']],
         body: items,
@@ -672,9 +670,9 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         </section>
       </div>
 
-      {/* Footer / Summary Bar - Always visible if items exist */}
+      {/* Footer / Summary Bar - Fixed at bottom for visibility */}
       {cart.length > 0 && (
-        <div className="p-8 bg-white border-t border-editorial-ink shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-30">
+        <div className="sticky bottom-0 left-0 right-0 p-8 bg-white border-t border-editorial-ink shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-40">
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-40">
               <span>Subtotal</span>

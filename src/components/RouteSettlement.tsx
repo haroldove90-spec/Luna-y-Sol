@@ -203,33 +203,35 @@ export default function RouteSettlement() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // Try first with driver_id
-      const { error: error1 } = await supabase
-        .from('route_settlements')
-        .insert([{
-          vehicle_id: currentVehicleId,
-          driver_id: user.id,
-          total_sales: totalSalesAmount,
-          cash_reported: totalSalesAmount,
-          status: 'settled'
-        }]);
+      // Try different column names for driver/user
+      let insertError: any = null;
+      
+      const attemptInsert = async (colName: string) => {
+        const { error } = await supabase
+          .from('route_settlements')
+          .insert([{
+            vehicle_id: currentVehicleId,
+            [colName]: user.id,
+            total_sales: totalSalesAmount,
+            cash_reported: totalSalesAmount,
+            status: 'settled'
+          }]);
+        return error;
+      };
 
-      if (error1) {
-          // Try with user_id as fallback
-          const { error: error2 } = await supabase
-            .from('route_settlements')
-            .insert([{
-              vehicle_id: currentVehicleId,
-              user_id: user.id,
-              total_sales: totalSalesAmount,
-              cash_reported: totalSalesAmount,
-              status: 'settled'
-            }]);
-          
-          if (error2) {
-              // If both fail, report the first error which is more likely to be the "real" one if schema changed
-              throw error1;
+      // Try driver_id first
+      insertError = await attemptInsert('driver_id');
+      
+      if (insertError) {
+        // Try user_id second
+        const error2 = await attemptInsert('user_id');
+        if (error2) {
+          // Try assigned_driver_id third (just in case)
+          const error3 = await attemptInsert('assigned_driver_id');
+          if (error3) {
+            throw insertError; // Report the initial error if all fail
           }
+        }
       }
 
       toast.success('Día de ruta cerrado legalmente');
