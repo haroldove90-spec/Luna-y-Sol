@@ -11,7 +11,9 @@ import {
   Filter,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -24,6 +26,7 @@ export function SalesHistory() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -42,6 +45,49 @@ export function SalesHistory() {
     if (error) toast.error('Error al cargar historial: ' + error.message);
     else setOrders(data || []);
     setLoading(false);
+  };
+
+  const handleDelete = async (order: any) => {
+    if (!confirm('¿Seguro que desea eliminar este registro de venta?')) return;
+    
+    if (order.isLocal) {
+        await db.orders.delete(parseInt(order.id.replace('LOCAL-', '')));
+        toast.success('Venta local eliminada');
+        return;
+    }
+
+    const { error } = await supabase.from('orders').delete().eq('id', order.id);
+    if (error) toast.error('Error al eliminar: ' + error.message);
+    else {
+        toast.success('Venta eliminada del servidor');
+        fetchOrders();
+    }
+  };
+
+  const handleUpdateOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+
+    if (editingOrder.isLocal) {
+        await db.orders.update(parseInt(editingOrder.id.replace('LOCAL-', '')), {
+            total: editingOrder.total_amount
+        });
+        toast.success('Venta local actualizada');
+        setEditingOrder(null);
+        return;
+    }
+
+    const { error } = await supabase
+        .from('orders')
+        .update({ total_amount: editingOrder.total_amount })
+        .eq('id', editingOrder.id);
+    
+    if (error) toast.error('Error al actualizar: ' + error.message);
+    else {
+        toast.success('Venta actualizada');
+        fetchOrders();
+        setEditingOrder(null);
+    }
   };
 
   const localOrders = useLiveQuery(() => db.orders.where('status').anyOf(['pending', 'failed']).toArray()) || [];
@@ -148,12 +194,29 @@ export function SalesHistory() {
                         )}
                       </td>
                       <td className="p-6 text-right">
-                        <button 
-                          onClick={() => setSelectedOrder(order)}
-                          className="p-3 hover:bg-editorial-ink hover:text-white transition-all text-stone-400"
-                        >
-                          <FileText size={16} />
-                        </button>
+                        <div className="flex justify-end gap-2">
+                            <button 
+                                onClick={() => setSelectedOrder(order)}
+                                className="p-3 hover:bg-stone-100 transition-all text-stone-400"
+                                title="Ver Detalle"
+                            >
+                                <FileText size={16} />
+                            </button>
+                            <button 
+                                onClick={() => setEditingOrder(order)}
+                                className="p-3 hover:bg-stone-100 transition-all text-stone-400 hover:text-amber-600"
+                                title="Editar"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                            <button 
+                                onClick={() => handleDelete(order)}
+                                className="p-3 hover:bg-stone-100 transition-all text-stone-400 hover:text-red-600"
+                                title="Borrar"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -240,6 +303,31 @@ export function SalesHistory() {
                 <Download size={16} /> GENERAR ARCHIVO PDF
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingOrder && (
+        <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-300 border-2 border-editorial-ink">
+            <h4 className="text-xl font-serif italic mb-6">Editar Importe de Venta</h4>
+            <form onSubmit={handleUpdateOrder} className="space-y-6">
+                <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-2 block">Importe Total ($)</label>
+                    <input 
+                        type="number"
+                        step="0.01"
+                        required
+                        value={editingOrder.total_amount}
+                        onChange={(e) => setEditingOrder({...editingOrder, total_amount: parseFloat(e.target.value)})}
+                        className="w-full border-b-2 border-stone-200 py-3 text-2xl font-sans font-bold focus:border-editorial-ink outline-none"
+                    />
+                </div>
+                <div className="flex gap-4">
+                    <button type="submit" className="flex-1 bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest">GUARDAR</button>
+                    <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 border border-editorial-ink py-4 text-[10px] font-bold uppercase tracking-widest">CANCELAR</button>
+                </div>
+            </form>
           </div>
         </div>
       )}

@@ -119,6 +119,18 @@ CREATE TABLE truck_inventory (
     UNIQUE(vehicle_id, product_id)
 );
 
+-- 3.8 Route Settlements
+CREATE TABLE route_settlements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vehicle_id UUID NOT NULL REFERENCES vehicles(id),
+    driver_id UUID REFERENCES profiles(id),
+    total_sales DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    cash_reported DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    status TEXT DEFAULT 'settled',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 4. Triggers and Functions
 -- Create a profile whenever a new user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()

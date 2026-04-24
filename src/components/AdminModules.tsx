@@ -728,6 +728,21 @@ export function DriverAdmin() {
                     >
                       <Edit2 size={14} />
                     </button>
+                    <button 
+                      onClick={async () => {
+                        if (confirm('¿Eliminar perfil de personal?')) {
+                          const { error } = await supabase.from('profiles').delete().eq('id', p.id);
+                          if (error) toast.error(error.message);
+                          else {
+                            toast.success('Perfil eliminado');
+                            fetchProfiles();
+                          }
+                        }
+                      }} 
+                      className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>

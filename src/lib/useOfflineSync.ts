@@ -14,7 +14,7 @@ async function syncToSupabase(order: OfflineOrder) {
       customer_id: order.customerId,
       vehicle_id: order.vehicleId,
       driver_id: order.driverId,
-      total: order.total,
+      total_amount: order.total,
       status: 'delivered',
       signature_url: order.signatureUrl,
       lat: order.lat,
