@@ -68,6 +68,39 @@ ON customers FOR ALL
 TO authenticated 
 USING (auth.jwt() ->> 'role' = 'admin');
 
+-- 6. POLÍTICAS PARA 'PROFILES'
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Política de lectura: Todos pueden ver perfiles (para dropdowns y listas)
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
+CREATE POLICY "Public profiles are viewable by everyone" 
+ON public.profiles FOR SELECT 
+USING (true);
+
+-- Política de actualización: Usuarios pueden editar su propio perfil
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" 
+ON public.profiles FOR UPDATE 
+USING (auth.uid() = id);
+
+-- POLÍTICA DE ADMIN: Acceso total si el rol es admin. 
+-- Usamos una subconsulta simple que aprovecha que SELECT es público (USING true)
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
+CREATE POLICY "Admins have full access to profiles" 
+ON public.profiles FOR ALL 
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- 7. POLÍTICAS PARA 'VEHICLES'
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Vehicles viewable by everyone" ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Admins can manage vehicles" ON public.vehicles FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+
 
 -- 5. FUNCIÓN DE ALERTA DE STOCK BAJO (Edge Function Logic)
 -- Esta lógica se ejecutaría en un trigger o Edge Function

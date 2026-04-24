@@ -336,39 +336,39 @@ export function VehicleAdmin() {
       return;
     }
 
-    const tempId = crypto.randomUUID();
-    const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{
-        id: tempId,
-        full_name: newDriverData.full_name.trim().toUpperCase(),
-        email: newDriverData.email.trim().toLowerCase(),
-        role: 'driver'
-    }]).select().single();
+    setLoading(true);
+    try {
+      const tempId = crypto.randomUUID();
+      const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{
+          id: tempId,
+          full_name: newDriverData.full_name.trim().toUpperCase(),
+          email: newDriverData.email.trim().toLowerCase(),
+          role: 'driver'
+      }]).select().single();
 
-    if (insErr) {
-        if (insErr.code === '23505') {
-          toast.error('Este email ya está registrado a otro usuario.');
-        } else {
-          toast.error('Falla al crear chofer: ' + insErr.message);
-        }
-    } else {
-        const realId = inserted?.id || tempId;
-        const driverName = newDriverData.full_name.trim().toUpperCase();
-        
-        toast.success(`Chofer ${driverName} registrado`);
-        
-        // Actualización local inmediata del catálogo para el dropdown
-        const newDriverRecord = { id: realId, full_name: driverName };
-        setDrivers(prev => [...prev, newDriverRecord].sort((a,b) => a.full_name.localeCompare(b.full_name)));
-        
-        // Sincronizar con servidor en segundo plano
-        fetchDrivers();
-        
-        if (isEditing) {
-            setIsEditing({ ...isEditing, assigned_driver_id: realId });
-            console.log('Asignando nuevo ID al formulario:', realId);
-        }
-        setIsAddingDriver(false);
-        setNewDriverData({ full_name: '', email: '' });
+      if (insErr) {
+          if (insErr.code === '23505') throw new Error('Este email ya existe en el sistema.');
+          throw insErr;
+      }
+
+      const realId = inserted?.id || tempId;
+      const driverName = (inserted?.full_name || newDriverData.full_name).toUpperCase();
+      
+      toast.success(`Chofer ${driverName} registrado y sincronizado`);
+      
+      // Sincronizar listas antes de asignar
+      await fetchDrivers();
+      
+      if (isEditing) {
+          setIsEditing(prev => prev ? { ...prev, assigned_driver_id: realId } : null);
+      }
+      
+      setIsAddingDriver(false);
+      setNewDriverData({ full_name: '', email: '' });
+    } catch (err: any) {
+      toast.error('No se pudo crear el chofer: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -392,7 +392,12 @@ export function VehicleAdmin() {
       assigned_driver_id: driverId
     };
 
-    console.log('Sincronizando unidad con central:', vehicleData);
+    // Verificación de integridad local antes de enviar
+    if (driverId && !drivers.some(d => d.id === driverId)) {
+      toast.error('Local error: El chofer asignado no se encuentra en la lista local de conductores activos. Intente refrescar.');
+      await fetchDrivers();
+      return;
+    }
 
     try {
       if (isEditing.id === 'new') {
@@ -872,16 +877,18 @@ export function DriverAdmin() {
                             throw delErr;
                           }
 
-                          if (count === 0) {
-                            throw new Error('No tienes permisos suficientes para eliminar este registro o ya no existe.');
+                          // Si count es null o undefined, confiamos en que no hubo error
+                          const deletedCount = count ?? 1;
+
+                          if (deletedCount === 0) {
+                            console.warn('Delete executed but count was 0. Probable RLS restriction.');
+                            throw new Error('No se borró el registro. Verifique que tenga permisos de administrador.');
                           }
 
                           toast.success('Perfil eliminado correctamente');
                           
-                          // 3. Forzar refresco local inmediato para evitar visualización fantasma
-                          setProfiles(prev => prev.filter(item => item.id !== p.id));
-                          
-                          // Recargar de servidor
+                          // 3. Forzar refresco local inmediato Y esperar recarga total
+                          setProfiles(prev => [...prev.filter(item => item.id !== p.id)]);
                           await fetchProfiles();
                         } catch (error: any) {
                           console.error('Delete error:', error);
