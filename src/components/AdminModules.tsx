@@ -11,7 +11,8 @@ import {
   Users,
   MapPin,
   DollarSign,
-  Loader2
+  Loader2,
+  RefreshCcw
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -284,60 +285,73 @@ export function VehicleAdmin() {
   }, []);
 
   const fetchDrivers = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name')
       .eq('role', 'driver')
       .order('full_name'); 
     if (!error && data) setDrivers(data);
+    setLoading(false);
   };
 
   const fetchVehicles = async () => {
     setLoading(true);
-    const { data: vData, error: vError } = await supabase
-      .from('vehicles')
-      .select('*, profiles:assigned_driver_id(full_name)')
-      .order('license_plate');
-    
-    if (vError) {
-        const { data: vehiclesRaw } = await supabase.from('vehicles').select('*').order('license_plate');
-        const { data: profilesRaw } = await supabase.from('profiles').select('id, full_name');
-        
-        if (vehiclesRaw && profilesRaw) {
-            const joined = vehiclesRaw.map(v => ({
-                ...v,
-                driver: profilesRaw.find(p => p.id === v.assigned_driver_id)
-            }));
-            setVehicles(joined);
-        } else if (vehiclesRaw) {
-            setVehicles(vehiclesRaw);
-        }
-    } else if (vData) {
-        const formatted = vData.map((v: any) => ({
-            ...v,
-            driver: v.profiles
-        }));
-        setVehicles(formatted);
+    try {
+      const { data: vData, error: vError } = await supabase
+        .from('vehicles')
+        .select('*, profiles:assigned_driver_id(full_name)')
+        .order('license_plate');
+      
+      if (vError) throw vError;
+
+      const formatted = vData.map((v: any) => ({
+          ...v,
+          driver: v.profiles
+      }));
+      setVehicles(formatted);
+    } catch (err: any) {
+      console.warn('Fallback fetch activated:', err.message);
+      // Fallback logic for when join fails
+      const { data: vehiclesRaw } = await supabase.from('vehicles').select('*').order('license_plate');
+      const { data: profilesRaw } = await supabase.from('profiles').select('id, full_name');
+      
+      if (vehiclesRaw && profilesRaw) {
+          const joined = vehiclesRaw.map(v => ({
+              ...v,
+              driver: profilesRaw.find(p => p.id === v.assigned_driver_id)
+          }));
+          setVehicles(joined);
+      } else if (vehiclesRaw) {
+          setVehicles(vehiclesRaw as any);
+      }
     }
     setLoading(false);
   };
 
   const handleQuickDriverSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDriverData.full_name || !newDriverData.email) return;
+    if (!newDriverData.full_name || !newDriverData.email) {
+      toast.error('Nombre y Email son requeridos');
+      return;
+    }
 
     const newId = crypto.randomUUID();
-    const { error } = await supabase.from('profiles').insert([{
+    const { error: insErr } = await supabase.from('profiles').insert([{
         id: newId,
-        full_name: newDriverData.full_name,
-        email: newDriverData.email.toLowerCase(),
+        full_name: newDriverData.full_name.trim().toUpperCase(),
+        email: newDriverData.email.trim().toLowerCase(),
         role: 'driver'
     }]);
 
-    if (error) {
-        toast.error('Error al crear chofer: ' + error.message);
+    if (insErr) {
+        if (insErr.code === '23505') {
+          toast.error('Este email ya está registrado a otro usuario.');
+        } else {
+          toast.error('Falla al crear chofer: ' + insErr.message);
+        }
     } else {
-        toast.success('Chofer creado y asignado');
+        toast.success('Chofer dado de alta. Sincronizando catálogo...');
         await fetchDrivers();
         if (isEditing) {
             setIsEditing({ ...isEditing, assigned_driver_id: newId });
@@ -411,12 +425,20 @@ export function VehicleAdmin() {
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Flotilla</h3>
           <p className="text-4xl font-sans mt-2">Unidades de Transporte</p>
         </div>
-        <button 
-          onClick={() => openEditModal({ id: 'new', license_plate: '', model: '', assigned_driver_id: '' })}
-          className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
-        >
-          <Plus size={16} /> NUEVA UNIDAD
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => { fetchVehicles(); fetchDrivers(); toast.info('Datos sincronizados'); }}
+            className="flex items-center gap-3 px-6 py-3 border border-editorial-ink text-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors"
+          >
+            <RefreshCcw size={16} className={cn(loading && "animate-spin")} /> ACTUALIZAR
+          </button>
+          <button 
+            onClick={() => openEditModal({ id: 'new', license_plate: '', model: '', assigned_driver_id: '' })}
+            className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={16} /> NUEVA UNIDAD
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -740,6 +762,12 @@ export function DriverAdmin() {
         </div>
         <div className="flex gap-4">
            <button 
+            onClick={() => { fetchProfiles(); toast.info('Listado actualizado'); }}
+            className="flex items-center gap-3 px-6 py-3 border border-editorial-ink text-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-all font-mono"
+          >
+            <RefreshCcw size={16} className={cn(loading && "animate-spin")} /> SINCRONIZAR
+          </button>
+           <button 
             onClick={() => setIsEditing({ id: 'new', full_name: '', role: 'driver', email: '', created_at: '' })}
             className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
           >
@@ -799,17 +827,44 @@ export function DriverAdmin() {
                     </button>
                     <button 
                       onClick={async () => {
-                        if (confirm('¿Eliminar perfil de personal?')) {
-                          // First, nullify any vehicle assignments to prevent issues (DB handles this but UI needs sync)
-                          await supabase.from('vehicles').update({ assigned_driver_id: null }).eq('assigned_driver_id', p.id);
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user && user.id === p.id) {
+                          toast.error('No puedes eliminar tu propio perfil de administrador.');
+                          return;
+                        }
+
+                        if (!confirm('¿Confirma la eliminación TOTAL de este perfil? Esta acción es irreversible.')) return;
+                        
+                        try {
+                          // 1. Desvincular de vehículos (NULLABLE)
+                          const { error: vErr } = await supabase
+                            .from('vehicles')
+                            .update({ assigned_driver_id: null })
+                            .eq('assigned_driver_id', p.id);
                           
-                          const { error } = await supabase.from('profiles').delete().eq('id', p.id);
-                          if (error) {
-                            toast.error('Error al eliminar: ' + error.message);
-                          } else {
-                            toast.success('Perfil eliminado del sistema');
-                            fetchProfiles();
+                          if (vErr) console.warn('Aviso: No se pudo desvincular de unidades:', vErr.message);
+
+                          // 2. Intentar borrar perfil
+                          // Nota: Si tiene órdenes o cargas (NOT NULL FK), esto fallará con error 23503
+                          const { error: delErr } = await supabase
+                            .from('profiles')
+                            .delete()
+                            .eq('id', p.id);
+
+                          if (delErr) {
+                            if (delErr.code === '23503') {
+                              throw new Error('No se puede eliminar: Este chofer tiene historial de ventas o cargas registradas en el sistema. Considere cambiar su rol o inactivarlo.');
+                            }
+                            throw delErr;
                           }
+
+                          toast.success('Perfil eliminado exitosamente');
+                          
+                          // 3. Forzar refresco local
+                          setProfiles(prev => prev.filter(item => item.id !== p.id));
+                          fetchProfiles();
+                        } catch (error: any) {
+                          toast.error(error.message || 'Error al intentar eliminar el registro');
                         }
                       }} 
                       className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"
