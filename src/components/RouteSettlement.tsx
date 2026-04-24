@@ -13,6 +13,7 @@ import {
   History,
   RefreshCcw,
   ChevronRight,
+  ChevronLeft,
   Truck
 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -59,23 +60,49 @@ export default function RouteSettlement() {
       }
     }
 
-    const { data: v } = await supabase
+    // Try to find vehicle where this user is the driver
+    // Trying common field names: driver_id, assigned_driver_id
+    const { data: v1 } = await supabase
       .from('vehicles')
       .select('id')
-      .eq('assigned_driver_id', user.id)
-      .single();
+      .eq('driver_id', user.id)
+      .maybeSingle();
     
-    if (v) {
-      setCurrentVehicleId(v.id);
+    if (v1) {
+      setCurrentVehicleId(v1.id);
+    } else {
+      const { data: v2 } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('assigned_driver_id', user.id)
+        .maybeSingle();
+      if (v2) setCurrentVehicleId(v2.id);
     }
     
     setLoading(false);
+  };
+
+  const checkTodaySettlement = async (vehicleId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('route_settlements')
+      .select('id')
+      .eq('vehicle_id', vehicleId)
+      .gte('created_at', today)
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      setSettled(true);
+    } else {
+      setSettled(false);
+    }
   };
 
   useEffect(() => {
     if (currentVehicleId) {
       fetchOperationalData();
       fetchCloudOrders();
+      checkTodaySettlement(currentVehicleId);
     }
   }, [currentVehicleId]);
 

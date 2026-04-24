@@ -96,7 +96,8 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   const [truckProducts, setTruckProducts] = useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
   const [lastSavedId, setLastSavedId] = useState<number | string | null>(null);
@@ -272,10 +273,10 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   // Filters
   const filteredProducts = useMemo(() => {
     return truckProducts.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+      p.sku.toLowerCase().includes(productSearch.toLowerCase())
     );
-  }, [searchQuery, truckProducts]);
+  }, [productSearch, truckProducts]);
 
   // Cart Logic
   const addToCart = (product: Product) => {
@@ -560,7 +561,17 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
 
           {!selectedCustomer ? (
             <div className="space-y-3">
-              {customers.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
+              <div className="relative mb-4">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar cliente..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-white border border-editorial-ink/10 text-xs font-bold tracking-widest focus:border-editorial-ink outline-none transition-all shadow-sm"
+                />
+              </div>
+              {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).map(c => (
                 <button 
                   key={c.id} 
                   onClick={() => setSelectedCustomer(c)}
@@ -604,8 +615,8 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
             <input 
               type="text" 
               placeholder="Buscar producto..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-4 bg-white border border-editorial-ink/10 text-xs font-bold tracking-widest focus:border-editorial-ink outline-none transition-all shadow-sm"
             />
           </div>
@@ -661,9 +672,9 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         </section>
       </div>
 
-      {/* Footer / Summary Bar */}
-      {cart.length > 0 && selectedCustomer && (
-        <div className="p-8 bg-white border-t border-editorial-ink shadow-[0_-10px_20px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-full duration-300">
+      {/* Footer / Summary Bar - Always visible if items exist */}
+      {cart.length > 0 && (
+        <div className="p-8 bg-white border-t border-editorial-ink shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-30">
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-40">
               <span>Subtotal</span>
@@ -681,10 +692,16 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
           
           <button 
             onClick={handleFinish}
-            className="w-full py-5 bg-editorial-ink text-white text-xs font-bold uppercase tracking-[0.4em] hover:bg-[#2A2A2A] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+            disabled={!selectedCustomer}
+            className={cn(
+              "w-full py-5 text-xs font-bold uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-3 active:scale-[0.98]",
+              selectedCustomer 
+                ? "bg-editorial-ink text-white hover:bg-[#2A2A2A]" 
+                : "bg-stone-200 text-stone-400 cursor-not-allowed"
+            )}
           >
             <CreditCard size={18} />
-            Finalizar Pedido
+            {selectedCustomer ? 'Finalizar Pedido' : 'Selecciona un Cliente'}
           </button>
         </div>
       )}
