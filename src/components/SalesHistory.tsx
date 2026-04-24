@@ -58,8 +58,14 @@ export function SalesHistory() {
       syncStatus: o.status
     }));
     
+    // Normalize remote orders to use total_amount property for the UI
+    const remote = orders.map(o => ({
+      ...o,
+      total_amount: o.total ?? o.total_amount
+    }));
+    
     // Combine and sort by date
-    const combined = [...local, ...orders];
+    const combined = [...local, ...remote];
     return combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [orders, localOrders]);
 

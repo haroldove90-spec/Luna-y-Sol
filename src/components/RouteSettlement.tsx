@@ -173,12 +173,15 @@ export default function RouteSettlement() {
   const handleFinalizeDay = async () => {
     setIsSettling(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
       const settlementData = {
         vehicle_id: currentVehicleId,
+        driver_id: user.id,
         total_sales: totalSalesAmount,
         cash_reported: totalSalesAmount,
-        status: 'settled',
-        created_at: new Date().toISOString()
+        status: 'settled'
       };
 
       const { error } = await supabase

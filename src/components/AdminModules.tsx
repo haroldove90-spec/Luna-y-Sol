@@ -291,12 +291,36 @@ export function VehicleAdmin() {
 
   const fetchVehicles = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // First try standard join
+    const { data: vData, error: vError } = await supabase
       .from('vehicles')
-      .select('*, driver:profiles!assigned_driver_id(full_name)')
+      .select('*, profiles:assigned_driver_id(full_name)')
       .order('license_plate');
-    if (error) toast.error('Error: ' + error.message);
-    else setVehicles(data || []);
+    
+    if (vError) {
+        console.warn('Relationship fetch failed, attempting manual join', vError);
+        // Fallback: Fetch separately
+        const { data: vehiclesRaw } = await supabase.from('vehicles').select('*').order('license_plate');
+        const { data: profilesRaw } = await supabase.from('profiles').select('id, full_name');
+        
+        if (vehiclesRaw && profilesRaw) {
+            const joined = vehiclesRaw.map(v => ({
+                ...v,
+                driver: profilesRaw.find(p => p.id === v.assigned_driver_id)
+            }));
+            setVehicles(joined);
+        } else if (vehiclesRaw) {
+            setVehicles(vehiclesRaw);
+        }
+    } else if (vData) {
+        // Remap profiles to driver for consistency with component expectation
+        const formatted = vData.map((v: any) => ({
+            ...v,
+            driver: v.profiles
+        }));
+        setVehicles(formatted);
+    }
     setLoading(false);
   };
 
@@ -304,10 +328,10 @@ export function VehicleAdmin() {
     e.preventDefault();
     if (!isEditing) return;
 
-    const vehicleData = {
+    const vehicleData: any = {
       license_plate: isEditing.license_plate,
       model: isEditing.model,
-      assigned_driver_id: isEditing.assigned_driver_id
+      assigned_driver_id: isEditing.assigned_driver_id || null
     };
 
     if (isEditing.id === 'new') {
