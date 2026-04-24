@@ -201,11 +201,12 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         margin: { left: margin, right: margin }
       });
 
-      y = (doc as any).lastAutoTable.finalY + 8;
+      const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
+      y = finalY + 8;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text(`TOTAL: $${total.toFixed(2)}`, 75, y, { align: 'right' });
+      doc.text(`TOTAL: $${(total || 0).toFixed(2)}`, 75, y, { align: 'right' });
       
       y += 15;
       doc.setFont('helvetica', 'italic');

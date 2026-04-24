@@ -121,7 +121,8 @@ export function SalesHistory() {
         margin: { left: margin, right: margin }
       });
 
-      y = (doc as any).lastAutoTable.finalY + 8;
+      const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
+      y = finalY + 8;
 
       // Totals
       const total = order.total || 0;

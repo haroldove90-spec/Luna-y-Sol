@@ -184,11 +184,26 @@ export default function RouteSettlement() {
         status: 'settled'
       };
 
+      // Try first with driver_id, fallback to user_id if column mismatch
       const { error } = await supabase
         .from('route_settlements')
         .insert([settlementData]);
 
-      if (error) throw error;
+      if (error && error.message.includes('driver_id')) {
+        // Fallback for older schema versions
+        const { error: fallbackError } = await supabase
+          .from('route_settlements')
+          .insert([{
+            vehicle_id: currentVehicleId,
+            user_id: user.id,
+            total_sales: totalSalesAmount,
+            cash_reported: totalSalesAmount,
+            status: 'settled'
+          }]);
+        if (fallbackError) throw fallbackError;
+      } else if (error) {
+        throw error;
+      }
 
       toast.success('Día de ruta cerrado legalmente');
       setSettled(true);

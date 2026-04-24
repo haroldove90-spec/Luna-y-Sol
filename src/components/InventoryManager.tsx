@@ -134,7 +134,7 @@ export function InventoryManager() {
     if (error) {
       toast.error('Error en la carga: ' + error.message);
     } else {
-      toast.success(`Camión ${selectedVehicle.plate} cargado exitosamente`);
+      toast.success(`Camión ${selectedVehicle.license_plate} cargado exitosamente`);
       setAssignments({});
       setSelectedVehicle(null);
     }
@@ -175,8 +175,8 @@ export function InventoryManager() {
               className="bg-white border border-editorial-ink p-8 text-left group hover:bg-editorial-ink hover:text-white transition-all"
             >
               <Truck size={24} className="mb-6 opacity-40 group-hover:text-[var(--primary)] group-hover:opacity-100 transition-all" />
-              <p className="text-2xl font-bold tracking-tighter mb-1 uppercase">{v.plate}</p>
-              <p className="text-[10px] uppercase font-bold tracking-widest opacity-40 group-hover:opacity-60">{v.driver_name}</p>
+              <p className="text-2xl font-bold tracking-tighter mb-1 uppercase">{v.license_plate}</p>
+              <p className="text-[10px] uppercase font-bold tracking-widest opacity-40 group-hover:opacity-60">{v.assigned_driver_id ? 'ASIGNADO' : 'SIN ASIGNAR'}</p>
               <div className="mt-8 flex items-center justify-between">
                 <span className="text-[9px] font-bold tracking-widest uppercase">Iniciar Carga</span>
                 <ChevronRight size={16} />
@@ -231,7 +231,7 @@ export function InventoryManager() {
                 <div className="space-y-4">
                    <div className="flex justify-between border-b border-white/10 pb-2">
                       <span className="text-[10px] font-bold uppercase opacity-40">Unidad:</span>
-                      <span className="text-[10px] font-bold">{selectedVehicle.plate}</span>
+                      <span className="text-[10px] font-bold">{selectedVehicle.license_plate}</span>
                    </div>
                    <div className="flex justify-between border-b border-white/10 pb-2">
                       <span className="text-[10px] font-bold uppercase opacity-40">Operador:</span>
