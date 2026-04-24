@@ -280,6 +280,20 @@ export function VehicleAdmin() {
   useEffect(() => {
     fetchVehicles();
     fetchDrivers();
+
+    const vChannel = supabase
+      .channel('fleet-sync-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, () => {
+        fetchVehicles();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchDrivers();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(vChannel);
+    };
   }, []);
 
   const fetchDrivers = async () => {
@@ -634,6 +648,17 @@ export function DriverAdmin() {
 
   useEffect(() => {
     fetchProfiles();
+
+    const pChannel = supabase
+      .channel('profiles-sync-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchProfiles();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pChannel);
+    };
   }, []);
 
   const fetchProfiles = async () => {

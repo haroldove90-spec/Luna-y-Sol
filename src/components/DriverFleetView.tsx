@@ -26,6 +26,47 @@ export function DriverFleetView({ driverId }: { driverId: string | undefined }) 
   useEffect(() => {
     if (driverId) {
       fetchAssignedVehicle();
+      
+      // Suscribirse a cambios en tiempo real en la tabla de vehículos
+      const channel = supabase
+        .channel('driver-vehicle-sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'vehicles'
+          },
+          (payload) => {
+            const oldData = payload.old as any;
+            const newData = payload.new as any;
+            
+            // Si el vehículo fue asignado a este chofer
+            if (newData && newData.assigned_driver_id === driverId) {
+               fetchAssignedVehicle();
+               if (oldData?.assigned_driver_id !== driverId) {
+                 toast.success('Nueva Unidad Asignada', {
+                   description: `Se te ha asignado la unidad ${newData.license_plate} (${newData.model}).`,
+                   duration: 10000
+                 });
+               }
+            } 
+            // Si el vehículo que tenía asignado este chofer cambió o fue desasignado
+            else if (oldData && oldData.assigned_driver_id === driverId) {
+               fetchAssignedVehicle();
+               if (newData?.assigned_driver_id !== driverId) {
+                  toast.info('Cambio de Asignación', {
+                    description: 'La unidad que tenías asignada ha sido retirada o reasignada.'
+                  });
+               }
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [driverId]);
 
@@ -76,11 +117,17 @@ export function DriverFleetView({ driverId }: { driverId: string | undefined }) 
         <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
           <AlertCircle size={32} className="text-stone-300" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-4">
           <h3 className="text-xl font-serif italic">Sin Unidad Asignada</h3>
           <p className="text-xs opacity-60 leading-relaxed max-w-xs mx-auto uppercase tracking-tighter">
-            Actualmente no tienes un vehículo vinculado a tu cuenta. Contacta al administrador para asignar tu unidad de ruta.
+            Actualmente no tienes un vehículo vinculado a tu cuenta o el administrador está actualizando tu perfil.
           </p>
+          <button 
+            onClick={fetchAssignedVehicle}
+            className="px-6 py-3 border border-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors"
+          >
+             Reintentar Sincronización
+          </button>
         </div>
       </div>
     );

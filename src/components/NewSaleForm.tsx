@@ -125,8 +125,9 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
 
       if (data && data.length > 0) {
         setIsSettled(true);
-        toast.error('Ruta Liquidada', {
-          description: 'El día de ruta para este vehículo ya fue cerrado. No se pueden generar más ventas hoy.',
+        // Informar pero no bloquear totalmente si es el admin o si necesita corregir
+        toast.error('Ruta ya liquidada para el día de hoy', {
+          description: 'Si necesita generar más ventas, el administrador debe eliminar la liquidación previa en el módulo de Historial.',
           duration: 5000
         });
       } else {

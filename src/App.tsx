@@ -188,6 +188,40 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (userRole === 'driver' && session?.user?.id) {
+      const channel = supabase
+        .channel('driver-global-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'vehicles'
+          },
+          (payload) => {
+            const newData = payload.new as any;
+            const oldData = payload.old as any;
+            
+            // Check if THIS driver is newly assigned or changed
+            if (newData && newData.assigned_driver_id === session.user.id) {
+               if (oldData?.assigned_driver_id !== session.user.id) {
+                 toast.success('Nueva Unidad Asignada', {
+                   description: `Se te ha vinculado la unidad ${newData.license_plate} (${newData.model}).`,
+                   duration: 8000
+                 });
+               }
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [userRole, session?.user?.id]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isOnline, isSyncing, pendingCount } = useOfflineSync();
 
