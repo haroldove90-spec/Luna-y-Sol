@@ -52,7 +52,12 @@ import { twMerge } from 'tailwind-merge';
 import RouteSettlement from './components/RouteSettlement';
 import NewSaleForm from './components/NewSaleForm';
 import { useOfflineSync } from './lib/useOfflineSync';
-import { ProductAdmin, VehicleAdmin, CustomerAdmin } from './components/AdminModules';
+import { 
+  ProductAdmin, 
+  VehicleAdmin, 
+  CustomerAdmin, 
+  DriverAdmin 
+} from './components/AdminModules';
 import { Onboarding } from './components/Onboarding';
 import { ErrorReport } from './components/ErrorReport';
 import { BrandingSettings } from './components/BrandingSettings';
@@ -131,7 +136,7 @@ const SALES_DATA = [
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'branding' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'drivers' | 'branding' | 'history'>('dashboard');
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -290,6 +295,13 @@ export default function App() {
                 primaryColor={brandConfig.primaryColor}
               />
               <NavItem 
+                icon={<Users size={18} />} 
+                label="CHOFERES" 
+                active={activeTab === 'drivers'} 
+                onClick={() => handleNavClick('drivers')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
                 icon={<TruckIcon size={18} />} 
                 label="FLOTILLA" 
                 active={activeTab === 'fleet'} 
@@ -389,6 +401,7 @@ export default function App() {
               {activeTab === 'inventory' && <InventoryManager />}
               {activeTab === 'products' && <ProductAdmin />}
               {activeTab === 'customers' && <CustomerAdmin />}
+              {activeTab === 'drivers' && <DriverAdmin />}
               {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
               {activeTab === 'history' && <SalesHistory />}
             </>

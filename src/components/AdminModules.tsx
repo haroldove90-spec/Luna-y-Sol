@@ -52,6 +52,14 @@ interface Customer {
   lng?: number;
 }
 
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 export function ProductAdmin() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -538,6 +546,172 @@ export function CustomerAdmin() {
               </div>
               <div className="flex gap-4 pt-8">
                 <button type="submit" className="flex-1 bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest">GUARDAR</button>
+                <button type="button" onClick={() => setIsEditing(null)} className="flex-1 border border-editorial-ink py-4 text-[10px] font-bold uppercase tracking-widest">CANCELAR</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DriverAdmin() {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState<Profile | null>(null);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
+  const fetchProfiles = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name');
+    
+    if (error) {
+      toast.error('Error al cargar usuarios: ' + error.message);
+    } else {
+      setProfiles(data || []);
+    }
+    setLoading(false);
+  };
+
+  const filtered = profiles.filter(p => 
+    (p.full_name?.toLowerCase() || '').includes(search.toLowerCase()) || 
+    (p.email?.toLowerCase() || '').includes(search.toLowerCase())
+  );
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditing) return;
+    
+    const updateData = {
+      full_name: isEditing.full_name,
+      role: isEditing.role
+    };
+
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
+    if (error) toast.error('Error al actualizar: ' + error.message);
+    else {
+      toast.success('Perfil actualizado');
+      fetchProfiles();
+      setIsEditing(null);
+    }
+  };
+
+  const handleToggleRole = async (profile: Profile) => {
+    const newRole = profile.role === 'admin' ? 'driver' : 'admin';
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', profile.id);
+    if (error) toast.error('Error: ' + error.message);
+    else {
+      toast.success(`Rol cambiado a ${newRole}`);
+      fetchProfiles();
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex justify-between items-end border-b border-editorial-ink pb-6">
+        <div>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Personal</h3>
+          <p className="text-4xl font-sans mt-2">Choferes y Usuarios</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Registro de Usuarios</p>
+          <p className="text-[11px] font-mono mt-1 italic">Los usuarios deben registrarse primero en el acceso principal.</p>
+        </div>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-editorial-ink opacity-40" size={16} />
+        <input 
+          type="text" 
+          placeholder="Buscar personal..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-12 pr-4 py-3 bg-white border border-editorial-ink/10 text-xs font-bold tracking-widest focus:border-editorial-ink outline-none"
+        />
+      </div>
+
+      <div className="bg-white border border-editorial-ink overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-editorial-ink bg-stone-50">
+              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">NOMBRE COMPLETO</th>
+              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">EMAIL / USUARIO</th>
+              <th className="p-4 text-[10px] font-bold uppercase tracking-widest">ROL</th>
+              <th className="p-4 text-[10px] font-bold uppercase tracking-widest text-center">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody className="text-xs">
+            {filtered.map(p => (
+              <tr key={p.id} className="border-b border-editorial-ink/5 hover:bg-stone-50 transition-colors">
+                <td className="p-4 font-bold uppercase tracking-wider">{p.full_name}</td>
+                <td className="p-4 font-mono opacity-60 lowercase">{p.email}</td>
+                <td className="p-4">
+                  <span className={cn(
+                    "px-2 py-1 text-[9px] font-bold uppercase tracking-tighter",
+                    p.role === 'admin' ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
+                  )}>
+                    {p.role}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <div className="flex justify-center gap-4">
+                    <button 
+                      onClick={() => handleToggleRole(p)} 
+                      title="Cambiar Rol"
+                      className="p-2 hover:bg-stone-100 transition-colors"
+                    >
+                      <Truck className={cn("transition-colors", p.role === 'driver' ? "text-blue-600" : "text-stone-300")} size={14} />
+                    </button>
+                    <button 
+                      onClick={() => setIsEditing(p)} 
+                      className="p-2 hover:bg-stone-100 transition-colors"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {loading && <tr><td colSpan={4} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> cargando personal...</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {isEditing && (
+        <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-10">
+            <h4 className="text-2xl font-serif italic mb-8">Editar Perfil</h4>
+            <form onSubmit={handleSave} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Nombre Completo</label>
+                <input 
+                  required
+                  value={isEditing.full_name}
+                  onChange={(e) => setIsEditing({...isEditing, full_name: e.target.value})}
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Rol de Usuario</label>
+                <select 
+                  value={isEditing.role}
+                  onChange={(e) => setIsEditing({...isEditing, role: e.target.value})}
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold focus:border-editorial-ink outline-none bg-transparent"
+                >
+                  <option value="driver">CHOFER / LOGÍSTICA</option>
+                  <option value="admin">ADMINISTRADOR</option>
+                </select>
+              </div>
+              <div className="flex gap-4 pt-8">
+                <button type="submit" className="flex-1 bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest">GUARDAR CAMBIOS</button>
                 <button type="button" onClick={() => setIsEditing(null)} className="flex-1 border border-editorial-ink py-4 text-[10px] font-bold uppercase tracking-widest">CANCELAR</button>
               </div>
             </form>
