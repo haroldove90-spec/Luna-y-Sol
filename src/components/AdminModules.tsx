@@ -276,8 +276,6 @@ export function VehicleAdmin() {
   const [drivers, setDrivers] = useState<{id: string, full_name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Vehicle | null>(null);
-  const [isAddingDriver, setIsAddingDriver] = useState(false);
-  const [newDriverData, setNewDriverData] = useState({ full_name: '', email: '' });
 
   useEffect(() => {
     fetchVehicles();
@@ -329,62 +327,6 @@ export function VehicleAdmin() {
     setLoading(false);
   };
 
-  const handleQuickDriverSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDriverData.full_name) {
-      toast.error('Nombre completo es requerido');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tempId = crypto.randomUUID();
-      // Permitir email nulo si no se provee
-      const emailValue = newDriverData.email?.trim().toLowerCase() || null;
-      
-      const { data: inserted, error: insErr } = await supabase
-        .from('profiles')
-        .insert([{
-          id: tempId,
-          full_name: newDriverData.full_name.trim().toUpperCase(),
-          email: emailValue,
-          role: 'driver'
-        }])
-        .select()
-        .single();
-
-      if (insErr) {
-          console.error('Error insertando chofer:', insErr);
-          if (insErr.code === '23505') throw new Error('El email ya está registrado.');
-          throw insErr;
-      }
-
-      const realId = inserted?.id || tempId;
-      const driverName = (inserted?.full_name || newDriverData.full_name).toUpperCase();
-      
-      toast.success(`Chofer ${driverName} registrado`);
-      
-      const newEntry = { id: realId, full_name: driverName };
-      setDrivers(prev => {
-        if (prev.some(d => d.id === realId)) return prev;
-        return [...prev, newEntry].sort((a,b) => a.full_name.localeCompare(b.full_name));
-      });
-      
-      if (isEditing) {
-          setIsEditing({ ...isEditing, assigned_driver_id: realId });
-      }
-      
-      setIsAddingDriver(false);
-      setNewDriverData({ full_name: '', email: '' });
-      fetchDrivers(); // Sync background
-    } catch (err: any) {
-      console.error('Error al crear chofer rápido:', err);
-      toast.error('No se pudo crear: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openEditModal = (vehicle: Vehicle | null) => {
     fetchDrivers();
     setIsEditing(vehicle);
@@ -405,16 +347,6 @@ export function VehicleAdmin() {
       assigned_driver_id: driverId
     };
 
-    // Verificación de integridad: si hay un id, asegurar que existe en DB
-    if (driverId) {
-       const { data: exists } = await supabase.from('profiles').select('id').eq('id', driverId).single();
-       if (!exists) {
-          toast.error('Error: El chofer seleccionado no existe en el sistema. Recargando...');
-          fetchDrivers();
-          return;
-       }
-    }
-
     try {
       if (isEditing.id === 'new') {
         const { error } = await supabase.from('vehicles').insert([vehicleData]);
@@ -430,7 +362,7 @@ export function VehicleAdmin() {
     } catch (error: any) {
       console.error('Error en operación de flotilla:', error);
       if (error.code === '23503') {
-        toast.error(`Error: El id de chofer (${driverId}) no existe. Intente recargar.`);
+        toast.error(`Error de Integridad: El chofer seleccionado no es válido en la base de datos central. Recargando catálogo...`);
         fetchDrivers();
       } else if (error.code === '23505') {
         toast.error('Error: Ya existe una unidad con estas placas.');
@@ -516,56 +448,17 @@ export function VehicleAdmin() {
                 />
               </div>
               <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddingDriver(true)}
-                    className="text-[10px] font-bold text-editorial-ink underline uppercase tracking-widest"
-                  >
-                    + Nuevo Chofer
-                  </button>
-                </div>
-
-                {isAddingDriver ? (
-                    <div className="p-6 bg-stone-50 border border-editorial-ink/10 space-y-4 animate-in slide-in-from-top-4 duration-300">
-                        <div className="flex justify-between items-center mb-2">
-                             <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Registro Rápido de Chofer</p>
-                             <button type="button" onClick={() => setIsAddingDriver(false)}><X size={14} /></button>
-                        </div>
-                        <input 
-                            placeholder="NOMBRE COMPLETO"
-                            value={newDriverData.full_name}
-                            onChange={(e) => setNewDriverData({...newDriverData, full_name: e.target.value})}
-                            className="w-full border-b border-editorial-ink/20 bg-transparent py-2 text-xs font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
-                        />
-                        <input 
-                            placeholder="EMAIL / USUARIO"
-                            type="email"
-                            value={newDriverData.email}
-                            onChange={(e) => setNewDriverData({...newDriverData, email: e.target.value})}
-                            className="w-full border-b border-editorial-ink/20 bg-transparent py-2 text-xs font-mono focus:border-editorial-ink outline-none"
-                        />
-                        <button 
-                            type="button"
-                            onClick={handleQuickDriverSave}
-                            className="w-full bg-editorial-ink text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
-                        >
-                            DAR DE ALTA Y ASIGNAR
-                        </button>
-                    </div>
-                ) : (
-                    <select 
-                      value={isEditing.assigned_driver_id || ''}
-                      onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value || null})}
-                      className="w-full border-b-2 border-editorial-ink/10 py-3 font-sans focus:border-editorial-ink outline-none bg-transparent"
-                    >
-                      <option value="">Seleccionar Chofer</option>
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>{d.full_name}</option>
-                      ))}
-                    </select>
-                )}
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
+                <select 
+                  value={isEditing.assigned_driver_id || ''}
+                  onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value || null})}
+                  className="w-full border-b-2 border-editorial-ink/10 py-3 font-sans focus:border-editorial-ink outline-none bg-transparent"
+                >
+                  <option value="">Seleccionar Chofer</option>
+                  {drivers.map(d => (
+                    <option key={d.id} value={d.id}>{d.full_name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-4 pt-8">
                 <button type="submit" className="flex-1 bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest">GUARDAR</button>
