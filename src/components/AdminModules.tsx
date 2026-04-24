@@ -38,6 +38,9 @@ interface Vehicle {
   license_plate: string;
   model: string;
   assigned_driver_id: string;
+  profiles?: {
+    full_name: string;
+  };
 }
 
 interface Customer {
@@ -261,16 +264,30 @@ export function ProductAdmin() {
 
 export function VehicleAdmin() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<{id: string, full_name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     fetchVehicles();
+    fetchDrivers();
   }, []);
+
+  const fetchDrivers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('role', 'driver')
+      .order('full_name');
+    if (!error && data) setDrivers(data);
+  };
 
   const fetchVehicles = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('vehicles').select('*').order('license_plate');
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*, profiles:assigned_driver_id(full_name)')
+      .order('license_plate');
     if (error) toast.error('Error: ' + error.message);
     else setVehicles(data || []);
     setLoading(false);
@@ -341,8 +358,8 @@ export function VehicleAdmin() {
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">{v.model}</p>
             <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
               <div>
-                <p className="text-[9px] font-mono opacity-40 uppercase">UUID Chofer:</p>
-                <p className="text-[10px] font-mono truncate w-32">{v.assigned_driver_id || 'SIN ASIGNAR'}</p>
+                <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider">{v.profiles?.full_name || 'SIN ASIGNAR'}</p>
               </div>
               <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
             </div>
@@ -372,13 +389,17 @@ export function VehicleAdmin() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">UUID del Chofer</label>
-                <input 
-                  required value={isEditing.assigned_driver_id}
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
+                <select 
+                  value={isEditing.assigned_driver_id}
                   onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono text-[10px] focus:border-editorial-ink outline-none"
-                  placeholder="ID de autenticación del chofer"
-                />
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none bg-transparent"
+                >
+                  <option value="">Seleccionar Chofer</option>
+                  {drivers.map(d => (
+                    <option key={d.id} value={d.id}>{d.full_name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-4 pt-8">
                 <button type="submit" className="flex-1 bg-editorial-ink text-white py-4 text-[10px] font-bold uppercase tracking-widest">GUARDAR</button>
