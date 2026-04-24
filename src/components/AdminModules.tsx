@@ -952,10 +952,12 @@ export function DriverAdmin() {
                 <td className="p-4 font-mono opacity-60 lowercase">{p.email}</td>
                 <td className="p-4">
                   <span className={cn(
-                    "px-2 py-1 text-[9px] font-bold uppercase tracking-tighter",
-                    p.role === 'admin' ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
-                  )}>
-                    {p.role}
+                    "px-2 py-1 text-[9px] font-bold uppercase tracking-tighter shadow-sm",
+                    p.role === 'admin' ? "bg-red-100 text-red-800" : 
+                    p.role === 'inactive' ? "bg-stone-100 text-stone-500 line-through" :
+                    "bg-blue-100 text-blue-800 text-black"
+                  )} style={p.role === 'driver' ? { backgroundColor: 'var(--primary)', color: 'black' } : {}}>
+                    {p.role === 'driver' ? 'CHOFER' : p.role === 'admin' ? 'ADMIN' : 'INACTIVO'}
                   </span>
                 </td>
                 <td className="p-4">
@@ -1022,6 +1024,7 @@ export function DriverAdmin() {
                 >
                   <option value="driver">CHOFER / LOGÍSTICA</option>
                   <option value="admin">ADMINISTRADOR</option>
+                  <option value="inactive">INACTIVO / BLOQUEADO</option>
                 </select>
               </div>
               <div className="flex gap-4 pt-8">

@@ -181,6 +181,7 @@ export default function App() {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log('Fetching role for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
@@ -188,21 +189,40 @@ export default function App() {
         .single();
       
       if (!error && data) {
-        const role = data.role as 'admin' | 'driver';
-        setUserRole(role);
-        setActualRole(role);
+        const role = data.role as string;
+        console.log('Found role in profile:', role);
+        
+        if (role === 'inactive') {
+          toast.error('ACCESO DENEGADO', {
+            description: 'Esta cuenta está desactivada por administración.',
+            duration: 10000
+          });
+          supabase.auth.signOut();
+          return;
+        }
+
+        const validRole = (role === 'admin' ? 'admin' : 'driver') as 'admin' | 'driver';
+        setUserRole(validRole);
+        setActualRole(validRole);
       } else {
+        console.warn('Profile role fetch failed or not found, checking fallback:', error);
         // Fallback email check
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email?.toLowerCase().includes('admin')) {
+        const userEmail = session?.user?.email?.toLowerCase() || '';
+        
+        // Hardcoded admin fallbacks for security/recovery
+        if (userEmail.includes('admin') || userEmail === 'haroldove90@gmail.com') {
+          console.log('Admin identified by email fallback');
           setUserRole('admin');
           setActualRole('admin');
         } else {
+          console.log('User identified as driver (default)');
           setUserRole('driver');
+          setActualRole('driver');
         }
       }
     } catch (err) {
-      console.error('Error fetching role:', err);
+      console.error('Error in fetchUserRole:', err);
     }
   };
 
@@ -471,9 +491,12 @@ export default function App() {
                <div className="h-8 w-px bg-editorial-ink/10" />
 
                <div className="flex items-center gap-3">
-                  <span className="hidden sm:block text-[10px] font-bold uppercase tracking-widest opacity-40">{userRole === 'admin' ? 'ADMINISTRADOR' : 'CHOFER'}</span>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px]" style={{ backgroundColor: 'var(--primary)', color: '#000' }}>
-                    <UserIcon size={16} />
+                  <div className="flex flex-col items-end">
+                     <span className="hidden sm:block text-[9px] font-bold uppercase tracking-widest opacity-40">{userRole === 'admin' ? 'SISTEMA CENTRAL' : 'UNIDAD EN RUTA'}</span>
+                     <span className="text-[10px] font-bold text-black px-2 py-0.5 rounded shadow-sm" style={{ backgroundColor: brandConfig.primaryColor }}>{userRole === 'admin' ? 'ADMINISTRADOR' : 'CHOFER'}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-full border border-editorial-ink/10 flex items-center justify-center text-black" style={{ backgroundColor: 'white' }}>
+                    <UserIcon size={20} />
                   </div>
                </div>
             </div>
