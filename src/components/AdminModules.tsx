@@ -38,7 +38,7 @@ interface Vehicle {
   license_plate: string;
   model: string;
   assigned_driver_id: string;
-  profiles?: {
+  driver?: {
     full_name: string;
   };
 }
@@ -294,7 +294,7 @@ export function VehicleAdmin() {
     setLoading(true);
     const { data, error } = await supabase
       .from('vehicles')
-      .select('*, profiles:assigned_driver_id(full_name)')
+      .select('*, driver:profiles!assigned_driver_id(full_name)')
       .order('license_plate');
     if (error) toast.error('Error: ' + error.message);
     else setVehicles(data || []);
@@ -367,7 +367,7 @@ export function VehicleAdmin() {
             <div className="pt-6 border-t border-editorial-ink/10 flex justify-between items-center">
               <div>
                 <p className="text-[9px] font-mono opacity-40 uppercase">Chofer Asignado:</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider">{v.profiles?.full_name || 'SIN ASIGNAR'}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider">{v.driver?.full_name || 'SIN ASIGNAR'}</p>
               </div>
               <div className="w-12 h-1 bg-editorial-ink/10 group-hover:bg-editorial-ink transition-colors"></div>
             </div>

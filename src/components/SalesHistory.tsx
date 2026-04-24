@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
@@ -9,11 +9,15 @@ import {
   ChevronRight,
   Download,
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../lib/db';
 
 export function SalesHistory() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -40,9 +44,28 @@ export function SalesHistory() {
     setLoading(false);
   };
 
-  const filteredOrders = orders.filter(o => 
+  const localOrders = useLiveQuery(() => db.orders.where('status').anyOf(['pending', 'failed']).toArray()) || [];
+
+  const allVisibleOrders = useMemo(() => {
+    // Convert local Dexie orders to match the format of Supabase orders
+    const local = localOrders.map(o => ({
+      ...o,
+      id: `LOCAL-${o.id}`,
+      total_amount: o.total,
+      created_at: o.createdAt,
+      customers: { name: o.customerName, address: o.status === 'failed' ? `Error: ${o.error}` : 'Resguardado Localmente' },
+      isLocal: true,
+      syncStatus: o.status
+    }));
+    
+    // Combine and sort by date
+    const combined = [...local, ...orders];
+    return combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [orders, localOrders]);
+
+  const filteredOrders = allVisibleOrders.filter(o => 
     o.customers?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.id.toLowerCase().includes(searchQuery.toLowerCase())
+    o.id.toString().toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -99,12 +122,24 @@ export function SalesHistory() {
                         </div>
                       </td>
                       <td className="p-6">
-                        <p className="text-lg font-sans font-bold">${order.total?.toFixed(2)}</p>
+                        <p className="text-lg font-sans font-bold">${order.total_amount?.toFixed(2)}</p>
                       </td>
                       <td className="p-6">
-                        <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[9px] font-bold uppercase tracking-widest border border-green-200">
-                          <CheckCircle2 size={10} /> ENTREGADO
-                        </span>
+                        {order.isLocal ? (
+                          order.syncStatus === 'failed' ? (
+                            <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-700 rounded-full text-[9px] font-bold uppercase tracking-widest border border-red-200">
+                               <AlertCircle size={10} /> FALLA SYNC
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-[9px] font-bold uppercase tracking-widest border border-amber-200">
+                               <Clock size={10} /> PENDIENTE SYNC
+                            </span>
+                          )
+                        ) : (
+                          <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[9px] font-bold uppercase tracking-widest border border-green-200">
+                            <CheckCircle2 size={10} /> ENTREGADO
+                          </span>
+                        )}
                       </td>
                       <td className="p-6 text-right">
                         <button 
