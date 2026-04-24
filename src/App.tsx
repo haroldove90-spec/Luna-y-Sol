@@ -143,6 +143,14 @@ export default function App() {
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
   const [actualRole, setActualRole] = useState<'admin' | 'driver' | null>(null);
 
+  const [activeTab, setActiveTab] = useState<any>(() => {
+    return localStorage.getItem('luna_y_sol_active_tab') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('luna_y_sol_active_tab', activeTab);
+  }, [activeTab]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -164,6 +172,13 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const toggleRole = () => {
+    if (actualRole === 'admin') {
+      setUserRole(prev => prev === 'admin' ? 'driver' : 'admin');
+      toast.info(`Cambiado a vista de ${userRole === 'admin' ? 'Chofer' : 'Administrador'}`);
+    }
+  };
+
   const fetchUserRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -177,23 +192,19 @@ export default function App() {
         setUserRole(role);
         setActualRole(role);
       } else {
-        setUserRole('driver');
+        // Fallback email check
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email?.toLowerCase().includes('admin')) {
+          setUserRole('admin');
+          setActualRole('admin');
+        } else {
+          setUserRole('driver');
+        }
       }
     } catch (err) {
       console.error('Error fetching role:', err);
     }
   };
-
-  const toggleRole = () => {
-    if (actualRole === 'admin') {
-      setUserRole(prev => prev === 'admin' ? 'driver' : 'admin');
-      toast.info(`Cambiado a vista de ${userRole === 'admin' ? 'Chofer' : 'Administrador'}`);
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState<any>(() => {
-    return localStorage.getItem('luna_y_sol_active_tab') || 'dashboard';
-  });
 
   useEffect(() => {
     if (userRole === 'driver' && session?.user?.id) {
@@ -460,9 +471,9 @@ export default function App() {
                <div className="h-8 w-px bg-editorial-ink/10" />
 
                <div className="flex items-center gap-3">
-                  <span className="hidden sm:block text-[10px] font-bold uppercase tracking-widest opacity-40">LÍDER LOGÍSTICO</span>
+                  <span className="hidden sm:block text-[10px] font-bold uppercase tracking-widest opacity-40">{userRole === 'admin' ? 'ADMINISTRADOR' : 'CHOFER'}</span>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px]" style={{ backgroundColor: 'var(--primary)', color: '#000' }}>
-                    <Users size={16} />
+                    <UserIcon size={16} />
                   </div>
                </div>
             </div>
