@@ -16,6 +16,7 @@ import {
   FileText,
   RotateCcw,
   Loader2,
+  FileDown,
   Wifi, 
   WifiOff, 
   RefreshCcw, 
@@ -31,6 +32,8 @@ import { useOfflineSync } from '../lib/useOfflineSync';
 import { useReactToPrint } from 'react-to-print';
 import { SaleTicket } from './SaleTicket';
 import { toast } from 'sonner';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -86,7 +89,7 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
-  const [lastSavedId, setLastSavedId] = useState<number | null>(null);
+  const [lastSavedId, setLastSavedId] = useState<number | string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const signatureRef = useRef<SignatureCanvas>(null);
@@ -147,6 +150,74 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   const handlePrint = useReactToPrint({
     contentRef: ticketRef,
   });
+
+  const generateTicketPDF = (orderData: any) => {
+    try {
+      const doc = new jsPDF({
+        unit: 'mm',
+        format: [80, 200]
+      });
+
+      const margin = 5;
+      let y = 10;
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LUNA Y SOL', 40, y, { align: 'center' });
+      y += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('SISTEMA DE VENTAS EN RUTA', 40, y, { align: 'center' });
+      y += 8;
+
+      doc.setFontSize(9);
+      doc.text(`Folio: # ${lastSavedId || '...'}`, margin, y);
+      y += 5;
+      doc.text(`Fecha: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, y);
+      y += 5;
+      doc.text(`Cliente: ${selectedCustomer?.name || 'Venta al Público'}`, margin, y);
+      y += 8;
+
+      const items = cart.map(item => [
+        item.name.substring(0, 15),
+        item.quantity,
+        `$${item.price.toFixed(2)}`,
+        `$${(item.price * item.quantity).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['ART', 'CT', 'PU', 'TOT']],
+        body: items,
+        theme: 'plain',
+        styles: { fontSize: 7, cellPadding: 1 },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 10, halign: 'center' },
+          2: { cellWidth: 12, halign: 'right' },
+          3: { cellWidth: 13, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`TOTAL: $${total.toFixed(2)}`, 75, y, { align: 'right' });
+      
+      y += 15;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.text('ESTE NO ES UN COMPROBANTE FISCAL', 40, y, { align: 'center' });
+
+      doc.save(`Ticket_${lastSavedId || 'PENDIENTE'}.pdf`);
+      toast.success('PDF Descargado');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al generar PDF');
+    }
+  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const toRad = (x: number) => (x * Math.PI) / 180;
@@ -348,10 +419,16 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
         
         <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
           <button 
-            onClick={() => handlePrint()}
-            className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all"
+                onClick={() => generateTicketPDF({})}
+                className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"
           >
-            <Printer size={18} /> IMPRIMIR TICKET
+            <FileDown size={18} /> DESCARGAR TICKET PDF
+          </button>
+          <button 
+            onClick={() => handlePrint()}
+            className="w-full py-5 border border-stone-200 text-stone-600 text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all"
+          >
+            <Printer size={18} /> IMPRIMIR (TÉRMICA)
           </button>
           <button 
             onClick={() => onSuccess({})}

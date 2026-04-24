@@ -123,12 +123,12 @@ export default function RouteSettlement() {
   const allOrders = useMemo(() => {
     const local = pendingOrders.map(o => ({
       ...o,
-      total_amount: o.total,
+      total: o.total, // Ensure consistency
       order_items: o.items.map(i => ({ product_id: i.id, quantity: i.quantity }))
     }));
     return [...cloudOrders, ...local]; 
   }, [cloudOrders, pendingOrders]);
-
+  
   const salesByProduct = useMemo(() => {
     const counts: Record<string, number> = {};
     allOrders.forEach(order => {
@@ -142,7 +142,7 @@ export default function RouteSettlement() {
   }, [allOrders]);
 
   const totalSalesAmount = useMemo(() => {
-    return allOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+    return allOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
   }, [allOrders]);
 
   const cashSales = useMemo(() => {

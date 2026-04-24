@@ -17,10 +17,11 @@ $$ language 'plpgsql';
 
 -- 3.1 Profiles Table (Extends Supabase Auth)
 CREATE TABLE IF NOT EXISTS profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
     role TEXT DEFAULT 'driver',
-    email TEXT,
+    email TEXT UNIQUE,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -88,7 +89,7 @@ CREATE TABLE orders (
     customer_id UUID NOT NULL REFERENCES customers(id),
     vehicle_id UUID NOT NULL REFERENCES vehicles(id),
     driver_id UUID NOT NULL REFERENCES profiles(id),
-    total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     status TEXT DEFAULT 'delivered' CHECK (status IN ('delivered', 'pending', 'cancelled')),
     signature_url TEXT,
     lat DOUBLE PRECISION,
@@ -136,16 +137,16 @@ CREATE TABLE route_settlements (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, full_name, email, role)
+    INSERT INTO public.profiles (user_id, full_name, email, role)
     VALUES (
         NEW.id, 
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'display_name', NEW.email), 
         NEW.email, 
         COALESCE(NEW.raw_user_meta_data->>'role', 'driver')
     )
-    ON CONFLICT (id) DO UPDATE SET
+    ON CONFLICT (email) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,
-        email = EXCLUDED.email,
         role = EXCLUDED.role;
     RETURN NEW;
 END;

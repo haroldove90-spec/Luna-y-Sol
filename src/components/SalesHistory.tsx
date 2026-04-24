@@ -13,13 +13,17 @@ import {
   Clock,
   AlertCircle,
   Trash2,
-  Edit2
+  Edit2,
+  FileDown,
+  X as CloseIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function SalesHistory() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -64,6 +68,80 @@ export function SalesHistory() {
     }
   };
 
+  const generatePDF = (order: any) => {
+    try {
+      const doc = new jsPDF({
+        unit: 'mm',
+        format: [80, 200]
+      });
+
+      const margin = 5;
+      let y = 10;
+
+      // Header
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LUNA Y SOL', 40, y, { align: 'center' });
+      y += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('SISTEMA DE VENTAS EN RUTA', 40, y, { align: 'center' });
+      y += 8;
+
+      // Order info
+      doc.setFontSize(9);
+      doc.text(`Folio: # ${order.id}`, margin, y);
+      y += 5;
+      doc.text(`Fecha: ${format(new Date(order.created_at || order.timestamp), 'dd/MM/yyyy HH:mm')}`, margin, y);
+      y += 5;
+      doc.text(`Cliente: ${order.customers?.name || order.customerName}`, margin, y);
+      y += 8;
+
+      // Items table
+      const items = order.order_items || order.items || [];
+      const tableData = items.map((item: any) => [
+        item.products?.name || item.name || 'P...',
+        item.quantity,
+        `$${(item.price || 0).toFixed(2)}`,
+        `$${((item.price || 0) * item.quantity).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['ART', 'CT', 'PU', 'TOT']],
+        body: tableData,
+        theme: 'plain',
+        styles: { fontSize: 7, cellPadding: 1 },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 10, halign: 'center' },
+          2: { cellWidth: 12, halign: 'right' },
+          3: { cellWidth: 13, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 8;
+
+      // Totals
+      const total = order.total_amount || order.total || 0;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`TOTAL: $${total.toFixed(2)}`, 75, y, { align: 'right' });
+      
+      y += 15;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.text('ESTE NO ES UN COMPROBANTE FISCAL', 40, y, { align: 'center' });
+
+      doc.save(`Ticket_${order.id}.pdf`);
+      toast.success('PDF Generado');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al generar PDF');
+    }
+  };
+
   const handleUpdateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingOrder) return;
@@ -79,7 +157,7 @@ export function SalesHistory() {
 
     const { error } = await supabase
         .from('orders')
-        .update({ total_amount: editingOrder.total_amount })
+        .update({ total: editingOrder.total_amount })
         .eq('id', editingOrder.id);
     
     if (error) toast.error('Error al actualizar: ' + error.message);
@@ -107,7 +185,7 @@ export function SalesHistory() {
     // Normalize remote orders to use total_amount property for the UI
     const remote = orders.map(o => ({
       ...o,
-      total_amount: o.total ?? o.total_amount
+      total_amount: o.total
     }));
     
     // Combine and sort by date
@@ -227,82 +305,87 @@ export function SalesHistory() {
         </div>
       </div>
 
-      {/* Order Detail Sidebars */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-editorial-ink/60 backdrop-blur-sm z-[100] flex justify-end">
-          <div className="bg-white w-full max-w-xl h-full shadow-2xl p-12 overflow-y-auto animate-in slide-in-from-right duration-500">
-            <div className="flex justify-between items-start mb-12">
-               <div>
-                 <h4 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Detalle de Operación</h4>
-                 <p className="text-3xl font-sans font-bold mt-2">Venta #{selectedOrder.id.split('-')[0].toUpperCase()}</p>
-               </div>
-               <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
-                 <Search size={24} className="rotate-45" />
-               </button>
-            </div>
-
+        <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-[120] animate-in slide-in-from-right duration-500 flex flex-col">
+          <div className="p-8 border-b border-stone-100 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Detalles de Venta</h3>
+            <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
+              <CloseIcon size={20} />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-10">
             <div className="space-y-12">
-              <div className="grid grid-cols-2 gap-8 py-8 border-y border-editorial-ink/5">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase opacity-40">Fecha de Emisión</p>
-                  <p className="font-bold">{format(new Date(selectedOrder.created_at), 'PPP', { locale: es })}</p>
+              <div className="grid grid-cols-2 gap-10">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-2">Fecha de Emisión</p>
+                  <p className="font-sans font-bold text-stone-800">{format(new Date(selectedOrder.created_at || selectedOrder.timestamp), "d 'de' MMMM 'de' yyyy", { locale: es })}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase opacity-40">Método de Cobro</p>
-                  <p className="font-bold uppercase">Contado / Efvo.</p>
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-2">Método de Cobro</p>
+                  <p className="font-sans font-bold text-stone-800">CONTADO / EFVO.</p>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <h5 className="text-[10px] font-bold uppercase tracking-widest opacity-40 border-b border-editorial-ink/5 pb-2">Cliente Final</h5>
-                <div className="flex gap-4 items-start">
-                  <div className="w-12 h-12 bg-editorial-ink text-white flex items-center justify-center font-sans text-xl">
-                    {selectedOrder.customers?.name?.[0]}
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-6">Cliente Final</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-editorial-ink text-white flex items-center justify-center font-bold text-xl uppercase">
+                    {selectedOrder.customers?.name?.charAt(0) || selectedOrder.customerName?.charAt(0) || 'U'}
                   </div>
                   <div>
-                    <p className="text-xl font-bold uppercase tracking-tight">{selectedOrder.customers?.name}</p>
-                    <p className="text-xs opacity-60 leading-relaxed mt-2">{selectedOrder.customers?.address}</p>
+                    <p className="font-sans font-bold text-xl uppercase tracking-tighter text-editorial-ink">{selectedOrder.customers?.name || selectedOrder.customerName}</p>
+                    <p className="text-[10px] font-mono opacity-40">{selectedOrder.customers?.address || 'SIN DIRECCIÓN REGISTRADA'}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <h5 className="text-[10px] font-bold uppercase tracking-widest opacity-40 border-b border-editorial-ink/5 pb-2">Evidencia de Entrega</h5>
-                {selectedOrder.signature_url ? (
-                  <div className="bg-stone-50 border border-editorial-ink/10 p-4">
-                    <img src={selectedOrder.signature_url} alt="Firma" className="max-h-32 object-contain mix-blend-multiply mx-auto" />
-                    <p className="text-center text-[9px] font-bold uppercase opacity-20 mt-4 tracking-widest">Firma Digital Capturada en Dispositivo Móvil</p>
-                  </div>
-                ) : (
-                  <div className="p-8 border-2 border-dashed border-stone-200 text-center text-[10px] font-bold uppercase opacity-20 tracking-widest">Sin Evidencia de Firma</div>
-                )}
-              </div>
-
-              <div className="space-y-6">
-                <h5 className="text-[10px] font-bold uppercase tracking-widest opacity-40 border-b border-editorial-ink/5 pb-2">Geolocalización de Venta</h5>
-                {selectedOrder.lat && (
-                   <div className="flex items-center gap-4 p-4 bg-editorial-ink text-white">
-                      <MapPin size={20} className="text-[var(--primary)]" />
-                      <div className="flex-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest">Coordenadas del Punto</p>
-                        <p className="font-mono text-xs mt-1">{selectedOrder.lat}, {selectedOrder.lng}</p>
+              {/* Items List */}
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-6">Conceptos Facturados</p>
+                 <div className="space-y-4">
+                    {(selectedOrder.order_items || selectedOrder.items || []).map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b border-stone-50">
+                        <div>
+                           <p className="text-[11px] font-bold uppercase tracking-tighter">{item.products?.name || item.name || 'PRODUCTO'}</p>
+                           <p className="text-[9px] font-mono opacity-40">{item.quantity} UNIDADES x ${ (item.price || 0).toFixed(2) }</p>
+                        </div>
+                        <p className="font-mono text-xs font-bold text-editorial-ink">${ ((item.price || 0) * item.quantity).toFixed(2) }</p>
                       </div>
-                      <a 
-                        href={`https://www.google.com/maps?q=${selectedOrder.lat},${selectedOrder.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-2 border border-white/20 hover:bg-white/10 transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </a>
-                   </div>
-                )}
+                    ))}
+                 </div>
               </div>
 
-              <button className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.4em] flex items-center justify-center gap-4 hover:shadow-xl transition-all">
-                <Download size={16} /> GENERAR ARCHIVO PDF
-              </button>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-6">Evidencia de Entrega</p>
+                <div className="aspect-video bg-stone-50 border border-dashed border-stone-200 flex items-center justify-center relative group overflow-hidden">
+                   {selectedOrder.signature_url || selectedOrder.signatureUrl ? (
+                      <img src={selectedOrder.signature_url || selectedOrder.signatureUrl} alt="Firma" className="max-h-full object-contain p-4" />
+                   ) : (
+                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-30">Sin Evidencia de Firma</span>
+                   )}
+                </div>
+              </div>
+
+              {(selectedOrder.lat && selectedOrder.lng) && (
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest opacity-30 mb-6">Geolocalización de Venta</p>
+                  <div className="p-4 bg-stone-50 border border-stone-100 flex items-center gap-3">
+                     <AlertCircle size={14} className="text-blue-500" />
+                     <p className="text-[9px] font-mono leading-none">CORD: {selectedOrder.lat.toFixed(4)}, {selectedOrder.lng.toFixed(4)}</p>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+
+          <div className="p-8 border-t border-stone-100 bg-stone-50/50">
+            <button 
+                onClick={() => generatePDF(selectedOrder)}
+                className="w-full py-5 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"
+            >
+              <FileDown size={18} /> GENERAR ARCHIVO PDF
+            </button>
           </div>
         </div>
       )}
