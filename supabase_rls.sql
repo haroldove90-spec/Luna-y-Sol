@@ -24,12 +24,7 @@ USING (auth.uid() = driver_id);
 CREATE POLICY "Admin tiene control total sobre orders" 
 ON orders FOR ALL 
 TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
+USING (is_admin());
 
 
 -- 3. POLÍTICAS PARA 'TRUCK_INVENTORY' (Inventario de Camión)
@@ -46,12 +41,7 @@ USING (
 CREATE POLICY "Admin gestiona todo el inventario" 
 ON truck_inventory FOR ALL 
 TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
+USING (is_admin());
 
 
 -- 4. POLÍTICAS PARA 'PRODUCTS' Y 'CUSTOMERS' (Maestros)
@@ -70,60 +60,52 @@ USING (true);
 CREATE POLICY "Admin CRUD total productos" 
 ON products FOR ALL 
 TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
+USING (is_admin());
 
 CREATE POLICY "Admin CRUD total clientes" 
 ON customers FOR ALL 
 TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
+USING (is_admin());
 
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Política de lectura: Todos pueden ver perfiles (necesario para dropdowns y listado)
+-- Función de seguridad para verificar rol de admin sin recursión
+CREATE OR REPLACE FUNCTION is_admin() 
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- Lectura pública para dropdowns
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
 USING (true);
 
--- Política de actualización: Usuarios pueden editar su propio perfil
+-- Admin total
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
+CREATE POLICY "Admins have full access to profiles" 
+ON public.profiles FOR ALL 
+USING (is_admin());
+
+-- Usuarios editan su propio perfil
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" 
 ON public.profiles FOR UPDATE 
 USING (auth.uid() = id);
 
--- POLÍTICA DE ADMIN: Acceso total si el rol es admin.
-DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
-CREATE POLICY "Admins have full access to profiles" 
-ON public.profiles FOR ALL 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
-
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Vehicles viewable by everyone" ON vehicles;
 CREATE POLICY "Vehicles viewable by everyone" ON public.vehicles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage vehicles" ON vehicles;
 CREATE POLICY "Admins can manage vehicles" ON public.vehicles FOR ALL 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  )
-);
+USING (is_admin());
 
 
 -- 5. FUNCIÓN DE ALERTA DE STOCK BAJO (Edge Function Logic)

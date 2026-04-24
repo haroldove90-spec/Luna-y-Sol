@@ -428,12 +428,12 @@ export function VehicleAdmin() {
     } catch (error: any) {
       console.error('Error en operación de flotilla:', error);
       if (error.code === '23503') {
-        toast.error('Error de Integridad: El chofer seleccionado ya no existe en el sistema. Por favor refresque la lista.');
+        toast.error(`Error: El id de chofer (${driverId}) no es válido o ya no existe. Intente recargar.`);
         fetchDrivers();
       } else if (error.code === '23505') {
         toast.error('Error: Ya existe una unidad registrada con estas placas.');
       } else {
-        toast.error('No se pudo guardar: ' + error.message);
+        toast.error('No se pudo guardar: ' + (error.message || 'Error desconocido'));
       }
     }
   };
