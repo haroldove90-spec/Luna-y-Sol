@@ -12,7 +12,8 @@ import {
   PackageCheck,
   History,
   RefreshCcw,
-  ChevronRight
+  ChevronRight,
+  Truck
 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
@@ -30,16 +31,35 @@ export default function RouteSettlement() {
   const [settled, setSettled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentVehicleId, setCurrentVehicleId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
+  const [availableVehicles, setAvailableVehicles] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchDriverAssignment();
+    fetchUserData();
   }, []);
 
-  const fetchDriverAssignment = async () => {
+  const fetchUserData = async () => {
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: v, error } = await supabase
+    // Get role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    
+    if (profile) {
+      setUserRole(profile.role as 'admin' | 'driver');
+      
+      if (profile.role === 'admin') {
+        const { data: vList } = await supabase.from('vehicles').select('*');
+        setAvailableVehicles(vList || []);
+      }
+    }
+
+    const { data: v } = await supabase
       .from('vehicles')
       .select('id')
       .eq('assigned_driver_id', user.id)
@@ -47,10 +67,9 @@ export default function RouteSettlement() {
     
     if (v) {
       setCurrentVehicleId(v.id);
-    } else {
-      toast.error('No tienes un camión asignado para liquidar.');
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -183,16 +202,38 @@ export default function RouteSettlement() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-10 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="w-24 h-24 mb-8 text-black opacity-10">
-          <TruckIcon size={96} />
+          <Truck size={96} />
         </div>
-        <h3 className="text-3xl font-serif italic mb-4">Sin Unidad Asignada</h3>
-        <p className="max-w-md text-stone-500 leading-relaxed mb-8">
-          Tu cuenta no tiene una unidad de transporte asignada actualmente. 
-          Contacta al administrador para asignar un camión antes de proceder con la liquidación de ruta.
-        </p>
-        <div className="p-6 border border-stone-200 bg-stone-50 text-[10px] font-bold uppercase tracking-[0.2em]">
-          Estatus: Requiere Configuración de Flotilla
-        </div>
+        
+        {userRole === 'admin' ? (
+          <div className="max-w-xl w-full">
+            <h3 className="text-3xl font-serif italic mb-8">Seleccionar Unidad para Liquidación</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {availableVehicles.map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => setCurrentVehicleId(v.id)}
+                  className="p-6 border border-editorial-ink/10 bg-white hover:border-editorial-ink transition-all flex flex-col items-center gap-2 group"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-40 group-hover:opacity-100 uppercase">Placas</span>
+                  <span className="text-xl font-bold font-mono tracking-tighter uppercase">{v.license_plate}</span>
+                  <span className="text-[9px] italic opacity-60 uppercase">{v.model}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <h3 className="text-3xl font-serif italic mb-4">Sin Unidad Asignada</h3>
+            <p className="max-w-md text-stone-500 leading-relaxed mb-8">
+              Tu cuenta no tiene una unidad de transporte asignada actualmente. 
+              Contacta al administrador para asignar un camión antes de proceder con la liquidación de ruta.
+            </p>
+            <div className="p-6 border border-stone-200 bg-stone-50 text-[10px] font-bold uppercase tracking-[0.2em]">
+              Estatus: Requiere Configuración de Flotilla
+            </div>
+          </>
+        )}
       </div>
     );
   }

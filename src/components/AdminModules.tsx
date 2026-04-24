@@ -285,8 +285,7 @@ export function VehicleAdmin() {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name')
-      .eq('role', 'driver')
-      .order('full_name');
+      .order('full_name'); // Show all users as potential drivers to be safe
     if (!error && data) setDrivers(data);
   };
 
@@ -396,12 +395,24 @@ export function VehicleAdmin() {
                   className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
+              <div className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Asignar Chofer</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                        setIsEditing(null);
+                        toast.info("Por favor, usa el módulo de Choferes para dar de alta a un nuevo integrante.");
+                    }}
+                    className="text-[10px] font-bold text-editorial-ink underline uppercase tracking-widest"
+                  >
+                    + Nuevo Chofer
+                  </button>
+                </div>
                 <select 
                   value={isEditing.assigned_driver_id}
                   onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value})}
-                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-sans focus:border-editorial-ink outline-none bg-transparent"
+                  className="w-full border-b-2 border-editorial-ink/10 py-3 font-sans focus:border-editorial-ink outline-none bg-transparent"
                 >
                   <option value="">Seleccionar Chofer</option>
                   {drivers.map(d => (
