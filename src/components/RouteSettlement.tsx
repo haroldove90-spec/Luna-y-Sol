@@ -179,6 +179,24 @@ export default function RouteSettlement() {
 
   if (loading) return <div className="p-20 text-center animate-pulse uppercase font-bold tracking-widest opacity-40">Consultando Base de Datos Central...</div>;
 
+  if (!currentVehicleId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-10 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="w-24 h-24 mb-8 text-black opacity-10">
+          <TruckIcon size={96} />
+        </div>
+        <h3 className="text-3xl font-serif italic mb-4">Sin Unidad Asignada</h3>
+        <p className="max-w-md text-stone-500 leading-relaxed mb-8">
+          Tu cuenta no tiene una unidad de transporte asignada actualmente. 
+          Contacta al administrador para asignar un camión antes de proceder con la liquidación de ruta.
+        </p>
+        <div className="p-6 border border-stone-200 bg-stone-50 text-[10px] font-bold uppercase tracking-[0.2em]">
+          Estatus: Requiere Configuración de Flotilla
+        </div>
+      </div>
+    );
+  }
+
   if (settled) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-12 bg-white border-2 border-editorial-ink animate-in zoom-in-95 duration-500">

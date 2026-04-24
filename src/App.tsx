@@ -136,7 +136,13 @@ const SALES_DATA = [
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'driver'>('driver');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'inventory' | 'sale' | 'settlement' | 'products' | 'customers' | 'drivers' | 'branding' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<any>(() => {
+    return localStorage.getItem('luna_y_sol_active_tab') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('luna_y_sol_active_tab', activeTab);
+  }, [activeTab]);
 
   const fetchUserRole = async (userId: string) => {
     try {

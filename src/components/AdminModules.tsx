@@ -75,7 +75,7 @@ export function ProductAdmin() {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('name');
+      .order('created_at', { ascending: false });
     
     if (error) {
       toast.error('Error al cargar productos: ' + error.message);
@@ -592,15 +592,28 @@ export function DriverAdmin() {
     
     const updateData = {
       full_name: isEditing.full_name,
-      role: isEditing.role
+      role: isEditing.role,
+      email: isEditing.email
     };
 
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
-    if (error) toast.error('Error al actualizar: ' + error.message);
-    else {
-      toast.success('Perfil actualizado');
-      fetchProfiles();
-      setIsEditing(null);
+    if (isEditing.id === 'new') {
+      // For new users without auth, we just create the profile. 
+      // They won't be able to log in until auth is created, but they will exist in the system.
+      const { error } = await supabase.from('profiles').insert([{...updateData, id: crypto.randomUUID()}]);
+      if (error) toast.error('Error al crear: ' + error.message);
+      else {
+        toast.success('Perfil creado exitosamente');
+        fetchProfiles();
+        setIsEditing(null);
+      }
+    } else {
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
+      if (error) toast.error('Error al actualizar: ' + error.message);
+      else {
+        toast.success('Perfil actualizado');
+        fetchProfiles();
+        setIsEditing(null);
+      }
     }
   };
 
@@ -621,9 +634,13 @@ export function DriverAdmin() {
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Gestión de Personal</h3>
           <p className="text-4xl font-sans mt-2">Choferes y Usuarios</p>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Registro de Usuarios</p>
-          <p className="text-[11px] font-mono mt-1 italic">Los usuarios deben registrarse primero en el acceso principal.</p>
+        <div className="flex gap-4">
+           <button 
+            onClick={() => setIsEditing({ id: 'new', full_name: '', role: 'driver', email: '', created_at: '' })}
+            className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={16} /> NUEVO CHOFER
+          </button>
         </div>
       </div>
 
@@ -697,6 +714,16 @@ export function DriverAdmin() {
                   value={isEditing.full_name}
                   onChange={(e) => setIsEditing({...isEditing, full_name: e.target.value})}
                   className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Email / ID de Usuario</label>
+                <input 
+                  required
+                  type="email"
+                  value={isEditing.email}
+                  onChange={(e) => setIsEditing({...isEditing, email: e.target.value.toLowerCase()})}
+                  className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono focus:border-editorial-ink outline-none"
                 />
               </div>
               <div className="space-y-2">
