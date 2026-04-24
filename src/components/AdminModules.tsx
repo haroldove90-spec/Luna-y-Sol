@@ -331,47 +331,44 @@ export function VehicleAdmin() {
 
   const handleQuickDriverSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDriverData.full_name || !newDriverData.email) {
-      toast.error('Nombre y Email son requeridos');
+    if (!newDriverData.full_name) {
+      toast.error('Nombre completo es requerido');
       return;
     }
 
     setLoading(true);
     try {
       const tempId = crypto.randomUUID();
-      // Aseguramos que el select regrese el registro para tener el ID real generado por DB si aplica
+      // Permitir email nulo si no se provee
+      const emailValue = newDriverData.email?.trim().toLowerCase() || null;
+      
       const { data: inserted, error: insErr } = await supabase
         .from('profiles')
         .insert([{
           id: tempId,
           full_name: newDriverData.full_name.trim().toUpperCase(),
-          email: newDriverData.email.trim().toLowerCase(),
+          email: emailValue,
           role: 'driver'
         }])
         .select()
         .single();
 
       if (insErr) {
-          if (insErr.code === '23505') throw new Error('Este email ya existe en el sistema.');
+          console.error('Error insertando chofer:', insErr);
+          if (insErr.code === '23505') throw new Error('El email ya está registrado.');
           throw insErr;
       }
 
-      // IMPORTANTE: Priorizamos el ID que regresa Supabase
       const realId = inserted?.id || tempId;
       const driverName = (inserted?.full_name || newDriverData.full_name).toUpperCase();
       
       toast.success(`Chofer ${driverName} registrado`);
       
-      // Actualizar catálogo local de inmediato para que el dropdown lo vea
       const newEntry = { id: realId, full_name: driverName };
       setDrivers(prev => {
-        const exists = prev.some(d => d.id === realId);
-        if (exists) return prev;
+        if (prev.some(d => d.id === realId)) return prev;
         return [...prev, newEntry].sort((a,b) => a.full_name.localeCompare(b.full_name));
       });
-      
-      // Sincronizar en fondo
-      fetchDrivers();
       
       if (isEditing) {
           setIsEditing({ ...isEditing, assigned_driver_id: realId });
@@ -379,9 +376,10 @@ export function VehicleAdmin() {
       
       setIsAddingDriver(false);
       setNewDriverData({ full_name: '', email: '' });
+      fetchDrivers(); // Sync background
     } catch (err: any) {
       console.error('Error al crear chofer rápido:', err);
-      toast.error('No se pudo crear el chofer: ' + err.message);
+      toast.error('No se pudo crear: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -407,10 +405,14 @@ export function VehicleAdmin() {
       assigned_driver_id: driverId
     };
 
-    // Verificación de integridad local (más permisiva para evitar bloqueos por delay de estado)
-    if (driverId && drivers.length > 0 && !drivers.some(d => d.id === driverId)) {
-      console.warn('Driver selected not in local list, syncing...');
-      await fetchDrivers();
+    // Verificación de integridad: si hay un id, asegurar que existe en DB
+    if (driverId) {
+       const { data: exists } = await supabase.from('profiles').select('id').eq('id', driverId).single();
+       if (!exists) {
+          toast.error('Error: El chofer seleccionado no existe en el sistema. Recargando...');
+          fetchDrivers();
+          return;
+       }
     }
 
     try {
@@ -421,17 +423,17 @@ export function VehicleAdmin() {
       } else {
         const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', isEditing.id);
         if (error) throw error;
-        toast.success('Registro de flotilla actualizado');
+        toast.success('Flotilla actualizada');
       }
       setIsEditing(null);
       fetchVehicles();
     } catch (error: any) {
       console.error('Error en operación de flotilla:', error);
       if (error.code === '23503') {
-        toast.error(`Error: El id de chofer (${driverId}) no es válido o ya no existe. Intente recargar.`);
+        toast.error(`Error: El id de chofer (${driverId}) no existe. Intente recargar.`);
         fetchDrivers();
       } else if (error.code === '23505') {
-        toast.error('Error: Ya existe una unidad registrada con estas placas.');
+        toast.error('Error: Ya existe una unidad con estas placas.');
       } else {
         toast.error('No se pudo guardar: ' + (error.message || 'Error desconocido'));
       }

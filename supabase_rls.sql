@@ -70,22 +70,24 @@ USING (is_admin());
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Función de seguridad para verificar rol de admin sin recursión
+-- Optimizar función de admin para evitar recursión y ser más rápida
 CREATE OR REPLACE FUNCTION is_admin() 
 RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  );
-$$ LANGUAGE sql SECURITY DEFINER;
+  -- Usamos un select simple que el motor de postgres optimiza bien.
+  -- SECURITY DEFINER asegura que se ejecute con privilegios del creador (bypass RLS local)
+  SELECT (role = 'admin') FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 
--- Lectura pública para dropdowns
+-- 6. POLÍTICAS PARA 'PROFILES'
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Lectura para todos
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
 USING (true);
 
--- Admin total
+-- Admin control TOTAL
 DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
 CREATE POLICY "Admins have full access to profiles" 
 ON public.profiles FOR ALL 
@@ -95,7 +97,7 @@ USING (is_admin());
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" 
 ON public.profiles FOR UPDATE 
-USING (auth.uid() = id);
+USING (id = auth.uid());
 
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
