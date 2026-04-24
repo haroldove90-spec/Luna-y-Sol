@@ -81,16 +81,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 6. POLÍTICAS PARA 'PROFILES'
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
 -- Lectura para todos
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
 USING (true);
 
--- Admin control TOTAL
+-- Admin control TOTAL (INSERT, UPDATE, DELETE, SELECT)
 DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
 CREATE POLICY "Admins have full access to profiles" 
 ON public.profiles FOR ALL 
@@ -102,6 +99,12 @@ CREATE POLICY "Users can update own profile"
 ON public.profiles FOR UPDATE 
 USING (id = auth.uid());
 
+-- Asegurar permisos para borrar explícitamente si 'FOR ALL' falla en algunos contextos
+DROP POLICY IF EXISTS "Admins can delete profiles" ON profiles;
+CREATE POLICY "Admins can delete profiles" 
+ON public.profiles FOR DELETE 
+USING (is_admin());
+
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
 
@@ -111,6 +114,15 @@ CREATE POLICY "Vehicles viewable by everyone" ON public.vehicles FOR SELECT USIN
 DROP POLICY IF EXISTS "Admins can manage vehicles" ON vehicles;
 CREATE POLICY "Admins can manage vehicles" ON public.vehicles FOR ALL 
 USING (is_admin());
+
+-- 8. POLÍTICAS PARA 'ROUTE_SETTLEMENTS' (Fix error 42710)
+ALTER TABLE route_settlements ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir todo a usuarios autenticados" ON route_settlements;
+CREATE POLICY "Permitir todo a usuarios autenticados" 
+ON route_settlements FOR ALL 
+TO authenticated 
+USING (true);
 
 
 -- 5. FUNCIÓN DE ALERTA DE STOCK BAJO (Edge Function Logic)

@@ -804,6 +804,51 @@ export function DriverAdmin() {
     setLoading(false);
   };
 
+  const handleDeleteProfile = async (profile: Profile) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.id === profile.id) {
+      toast.error('No puedes eliminar tu propio perfil de administrador.');
+      return;
+    }
+
+    if (!confirm(`¿Confirma la eliminación TOTAL de ${profile.full_name.toUpperCase()}? Esta acción es irreversible.`)) return;
+    
+    setLoading(true);
+    try {
+      // 1. Desvincular de vehículos (NULLABLE) - Usando cleanup preventivo
+      await supabase
+        .from('vehicles')
+        .update({ assigned_driver_id: null })
+        .eq('assigned_driver_id', profile.id);
+      
+      // 2. Intentar borrar perfil
+      const { error: delErr } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', profile.id);
+
+      if (delErr) {
+        if (delErr.code === '23503') {
+          // Error de integridad referencial (tiene órdenes o liquidaciones)
+          toast.error('Restricción de Integridad', {
+            description: 'Este usuario tiene ventas o liquidaciones registradas. Por seguridad contable, no se puede eliminar el registro histórico.'
+          });
+          return;
+        }
+        throw delErr;
+      }
+
+      toast.success('Perfil eliminado correctamente');
+      setProfiles(prev => prev.filter(item => item.id !== profile.id));
+    } catch (error: any) {
+      console.error('Delete flow error:', error);
+      toast.error(error.message || 'Error al procesar la eliminación');
+    } finally {
+      setLoading(false);
+      fetchProfiles();
+    }
+  };
+
   const filtered = profiles.filter(p => 
     (p.full_name?.toLowerCase() || '').includes(search.toLowerCase()) || 
     (p.email?.toLowerCase() || '').includes(search.toLowerCase())
@@ -929,45 +974,9 @@ export function DriverAdmin() {
                       <Edit2 size={14} />
                     </button>
                     <button 
-                      onClick={async () => {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        if (user && user.id === p.id) {
-                          toast.error('No puedes eliminar tu propio perfil de administrador.');
-                          return;
-                        }
-
-                        if (!confirm('¿Confirma la eliminación TOTAL de este perfil? Esta acción es irreversible.')) return;
-                        
-                        try {
-                          // 1. Desvincular de vehículos (NULLABLE)
-                          await supabase
-                            .from('vehicles')
-                            .update({ assigned_driver_id: null })
-                            .eq('assigned_driver_id', p.id);
-                          
-                          // 2. Intentar borrar perfil
-                          const { error: delErr } = await supabase
-                            .from('profiles')
-                            .delete()
-                            .eq('id', p.id);
-
-                          if (delErr) {
-                            if (delErr.code === '23503') {
-                              throw new Error('Este usuario tiene historial (ventas o inventario) vinculado y no puede eliminarse por seguridad. Cambie su rol a "Inactivo" o similar si desea restringirlo.');
-                            }
-                            throw delErr;
-                          }
-
-                          toast.success('Perfil eliminado correctamente');
-                          setProfiles(prev => prev.filter(item => item.id !== p.id));
-                        } catch (error: any) {
-                          console.error('Delete flow error:', error);
-                          toast.error(error.message || 'No se pudo eliminar el registro');
-                        } finally {
-                           fetchProfiles();
-                        }
-                      }} 
+                      onClick={() => handleDeleteProfile(p)} 
                       className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"
+                      title="Eliminar Perfil"
                     >
                       <Trash2 size={14} />
                     </button>

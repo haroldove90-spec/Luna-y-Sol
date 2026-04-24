@@ -33,7 +33,11 @@ import {
   Loader2,
   FileText,
   LogOut, 
-  User as UserIcon
+  User as UserIcon,
+  UserPlus,
+  Tag,
+  BarChart3,
+  History
 } from 'lucide-react';
 import { LoadPrediction } from './components/LoadPrediction';
 import { SalesHistory } from './components/SalesHistory';
@@ -309,6 +313,13 @@ export default function App() {
                 primaryColor={brandConfig.primaryColor}
               />
               <NavItem 
+                icon={<History size={18} />} 
+                label="HISTORIAL" 
+                active={activeTab === 'history'} 
+                onClick={() => handleNavClick('history')} 
+                primaryColor={brandConfig.primaryColor}
+              />
+              <NavItem 
                 icon={<Users size={18} />} 
                 label="MIS CLIENTES" 
                 active={activeTab === 'customers'} 
@@ -335,6 +346,7 @@ export default function App() {
           
           {userRole === 'admin' && (
             <>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Inventario</p>
               <NavItem 
                 icon={<Package size={18} />} 
                 label="BODEGA" 
@@ -342,7 +354,6 @@ export default function App() {
                 onClick={() => handleNavClick('inventory')} 
                 primaryColor={brandConfig.primaryColor}
               />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Administración</p>
               <NavItem 
                 icon={<Box size={18} />} 
                 label="PRODUCTOS" 
@@ -350,6 +361,7 @@ export default function App() {
                 onClick={() => handleNavClick('products')} 
                 primaryColor={brandConfig.primaryColor}
               />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 px-4 py-2 mt-6">Administración</p>
               <NavItem 
                 icon={<Users size={18} />} 
                 label="CLIENTES" 
@@ -372,8 +384,8 @@ export default function App() {
                 primaryColor={brandConfig.primaryColor}
               />
               <NavItem 
-                icon={<FileText size={18} />} 
-                label="HISTORIAL" 
+                icon={<BarChart3 size={18} />} 
+                label="VENTAS POR CHOFER" 
                 active={activeTab === 'history'} 
                 onClick={() => handleNavClick('history')} 
                 primaryColor={brandConfig.primaryColor}
@@ -430,6 +442,7 @@ export default function App() {
                    activeTab === 'customers' ? 'Directorio Clientes' :
                    activeTab === 'branding' ? 'Imagen Corporativa' :
                    activeTab === 'my-fleet' ? 'Estatus de Unidad' :
+                   activeTab === 'history' ? (userRole === 'admin' ? 'Auditoría de Ventas' : 'Mis Ventas') :
                    'Liquidación de Ruta'}
                 </h3>
               </div>
@@ -477,9 +490,10 @@ export default function App() {
               {activeTab === 'customers' && <CustomerAdmin userRole={userRole} />}
               {activeTab === 'drivers' && <DriverAdmin />}
               {activeTab === 'branding' && <BrandingSettings config={brandConfig} onChange={setBrandConfig} />}
-              {activeTab === 'history' && <SalesHistory />}
+              {activeTab === 'history' && <SalesHistory userRole={userRole} userId={session?.user?.id} />}
             </>
           )}
+          {userRole === 'driver' && activeTab === 'history' && <SalesHistory userRole="driver" userId={session?.user?.id} />}
           {userRole === 'driver' && activeTab === 'customers' && <CustomerAdmin userRole="driver" />}
         </div>
 

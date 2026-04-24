@@ -34,7 +34,7 @@ interface jsPDFWithPlugin extends jsPDF {
   };
 }
 
-export function SalesHistory() {
+export function SalesHistory({ userRole, userId }: { userRole?: 'admin' | 'driver', userId?: string }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,18 +43,23 @@ export function SalesHistory() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [userRole, userId]);
 
   const fetchOrders = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select(`
         *,
         customers(name, address),
         profiles:driver_id(full_name)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    if (userRole === 'driver' && userId) {
+      query = query.eq('driver_id', userId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) toast.error('Error al cargar historial: ' + error.message);
     else {
@@ -220,7 +225,7 @@ export function SalesHistory() {
       <div className="flex justify-between items-end border-b border-editorial-ink/10 pb-6">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Auditoría Comercial</h3>
-          <p className="text-4xl font-sans mt-2">Historial de Ventas</p>
+          <p className="text-4xl font-sans mt-2">{userRole === 'admin' ? 'Ventas por Chofer' : 'Historial de Ventas'}</p>
         </div>
         <div className="flex gap-4">
           <div className="relative w-64">
