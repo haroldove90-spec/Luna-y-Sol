@@ -327,9 +327,28 @@ export function VehicleAdmin() {
     setLoading(false);
   };
 
-  const openEditModal = (vehicle: Vehicle | null) => {
-    fetchDrivers();
-    setIsEditing(vehicle);
+  const openEditModal = async (vehicle: Vehicle | null) => {
+    // Primero asegurar que el catálogo esté fresco
+    const { data: latestDrivers } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('role', 'driver')
+      .order('full_name');
+    
+    if (latestDrivers) setDrivers(latestDrivers);
+
+    if (vehicle && vehicle.id !== 'new') {
+        const validDrivers = latestDrivers || drivers;
+        const exists = validDrivers.some(d => d.id === vehicle.assigned_driver_id);
+        // Si el ID guardado no existe en el catálogo activo (chofer borrado), lo reseteamos a null localmente
+        if (vehicle.assigned_driver_id && !exists) {
+            setIsEditing({ ...vehicle, assigned_driver_id: null });
+        } else {
+            setIsEditing(vehicle);
+        }
+    } else {
+        setIsEditing(vehicle);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -337,7 +356,7 @@ export function VehicleAdmin() {
     if (!isEditing) return;
 
     // Clean data for Supabase
-    const driverId = (isEditing.assigned_driver_id && isEditing.assigned_driver_id.trim() !== '') 
+    const driverId = (isEditing.assigned_driver_id && typeof isEditing.assigned_driver_id === 'string' && isEditing.assigned_driver_id.trim() !== '') 
       ? isEditing.assigned_driver_id 
       : null;
 
@@ -351,23 +370,23 @@ export function VehicleAdmin() {
       if (isEditing.id === 'new') {
         const { error } = await supabase.from('vehicles').insert([vehicleData]);
         if (error) throw error;
-        toast.success('Vehículo registrado exitosamente');
+        toast.success('Vehículo registrado');
       } else {
         const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', isEditing.id);
         if (error) throw error;
-        toast.success('Flotilla actualizada');
+        toast.success('Cambios guardados en flotilla');
       }
       setIsEditing(null);
       fetchVehicles();
     } catch (error: any) {
-      console.error('Error en operación de flotilla:', error);
+      console.error('Vehicle sync error:', error);
       if (error.code === '23503') {
-        toast.error(`Error de Integridad: El chofer seleccionado no es válido en la base de datos central. Recargando catálogo...`);
+        toast.error(`Error: El chofer con ID ${driverId?.substring(0,8)}... no es válido. Seleccione uno de la lista actualizada.`);
         fetchDrivers();
       } else if (error.code === '23505') {
-        toast.error('Error: Ya existe una unidad con estas placas.');
+        toast.error('Error: Las placas ya están registradas en otra unidad.');
       } else {
-        toast.error('No se pudo guardar: ' + (error.message || 'Error desconocido'));
+        toast.error('Error al guardar: ' + (error.message || 'Error de base de datos'));
       }
     }
   };
@@ -774,37 +793,25 @@ export function DriverAdmin() {
                             .eq('assigned_driver_id', p.id);
                           
                           // 2. Intentar borrar perfil
-                          const { error: delErr, count } = await supabase
+                          const { error: delErr } = await supabase
                             .from('profiles')
-                            .delete({ count: 'exact' })
+                            .delete()
                             .eq('id', p.id);
 
                           if (delErr) {
                             if (delErr.code === '23503') {
-                              throw new Error('Este chofer tiene historial de ventas. No puede ser borrado, solo inactivado (cambiando su rol).');
+                              throw new Error('Este usuario tiene historial (ventas o inventario) vinculado y no puede eliminarse por seguridad. Cambie su rol a "Inactivo" o similar si desea restringirlo.');
                             }
                             throw delErr;
                           }
 
-                          // Si count es null o undefined, confiamos en que no hubo error
-                          const deletedCount = count ?? 1;
-
-                          if (deletedCount === 0) {
-                            console.warn('Delete executed but count was 0. Probable RLS restriction.');
-                            throw new Error('No se borró el registro. Verifique que tenga permisos de administrador.');
-                          }
-
                           toast.success('Perfil eliminado correctamente');
-                          
-                          // Actualización local ATÓMICA e INMEDIATA
                           setProfiles(prev => prev.filter(item => item.id !== p.id));
-                          
-                          // Recargar de servidor para estar sincronizados al 100%
-                          await fetchProfiles();
                         } catch (error: any) {
-                          console.error('Delete error details:', error);
-                          toast.error(error.message || 'Error al intentar eliminar');
-                          fetchProfiles(); // Revertir si falló algo raro
+                          console.error('Delete flow error:', error);
+                          toast.error(error.message || 'No se pudo eliminar el registro');
+                        } finally {
+                           fetchProfiles();
                         }
                       }} 
                       className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"

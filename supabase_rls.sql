@@ -73,9 +73,11 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 -- Optimizar función de admin para evitar recursión y ser más rápida
 CREATE OR REPLACE FUNCTION is_admin() 
 RETURNS BOOLEAN AS $$
-  -- Usamos un select simple que el motor de postgres optimiza bien.
-  -- SECURITY DEFINER asegura que se ejecute con privilegios del creador (bypass RLS local)
-  SELECT (role = 'admin') FROM public.profiles WHERE id = auth.uid();
+  -- Usamos un subquery con COALESCE para asegurar siempre un booleano (nunca NULL)
+  SELECT COALESCE(
+    (SELECT role = 'admin' FROM public.profiles WHERE id = auth.uid() LIMIT 1),
+    false
+  );
 $$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 
 -- 6. POLÍTICAS PARA 'PROFILES'

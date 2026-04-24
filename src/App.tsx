@@ -538,17 +538,25 @@ function DashboardView({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-12">
-      <div className="flex justify-between items-center bg-stone-50 border border-editorial-ink/10 p-6 rounded-sm">
-        <div>
+      <div className="flex flex-col sm:flex-row gap-6 items-center justify-between bg-stone-50 border border-editorial-ink/10 p-6 rounded-sm">
+        <div className="flex-1">
           <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-40">Herramientas de Control</h4>
           <p className="text-xl font-serif italic">Operaciones del Ciclo Actual</p>
         </div>
-        <button 
-          onClick={exportToCSV}
-          className="flex items-center gap-3 px-6 py-3 bg-white border border-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors"
-        >
-          <FileSpreadsheet size={16} /> EXPORTAR REPORTE (.CSV)
-        </button>
+        <div className="flex gap-4 w-full sm:w-auto">
+          <button 
+            onClick={() => onNavigate('sale')}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest hover:bg-stone-800 transition-all shadow-lg active:scale-95"
+          >
+            <ShoppingCart size={16} /> NUEVA VENTA
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-white border border-editorial-ink text-[10px] font-bold uppercase tracking-widest hover:bg-stone-100 transition-colors"
+          >
+            <FileSpreadsheet size={16} /> EXPORTAR CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">

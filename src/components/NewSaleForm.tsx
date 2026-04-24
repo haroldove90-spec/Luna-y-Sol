@@ -112,19 +112,28 @@ export default function NewSaleForm({ driverId, onCancel, onSuccess }: NewSaleFo
   const [isSettled, setIsSettled] = useState(false);
 
   const checkSettlement = async (vId: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase
-      .from('route_settlements')
-      .select('id')
-      .eq('vehicle_id', vId)
-      .gte('created_at', today)
-      .limit(1);
-    
-    if (data && data.length > 0) {
-      setIsSettled(true);
-      toast.error('Unidad Liquidada: El día de ruta para este vehículo ya fue cerrado.');
-    } else {
-      setIsSettled(false);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('route_settlements')
+        .select('id')
+        .eq('vehicle_id', vId)
+        .gte('created_at', today)
+        .limit(1);
+      
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setIsSettled(true);
+        toast.error('Ruta Liquidada', {
+          description: 'El día de ruta para este vehículo ya fue cerrado. No se pueden generar más ventas hoy.',
+          duration: 5000
+        });
+      } else {
+        setIsSettled(false);
+      }
+    } catch (err) {
+      console.error('Error verificando liquidación:', err);
     }
   };
 
