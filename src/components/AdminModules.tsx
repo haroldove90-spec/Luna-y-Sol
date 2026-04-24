@@ -37,7 +37,7 @@ interface Vehicle {
   id: string;
   license_plate: string;
   model: string;
-  assigned_driver_id: string;
+  assigned_driver_id: string | null;
   driver?: {
     full_name: string;
   };
@@ -356,28 +356,42 @@ export function VehicleAdmin() {
     e.preventDefault();
     if (!isEditing) return;
 
+    // Clean data for Supabase
+    const driverId = (isEditing.assigned_driver_id && isEditing.assigned_driver_id.trim() !== '') 
+      ? isEditing.assigned_driver_id 
+      : null;
+
     const vehicleData: any = {
-      license_plate: isEditing.license_plate,
-      model: isEditing.model,
-      assigned_driver_id: isEditing.assigned_driver_id || null
+      license_plate: isEditing.license_plate.toUpperCase().trim(),
+      model: isEditing.model.trim(),
+      assigned_driver_id: driverId
     };
 
-    if (isEditing.id === 'new') {
-      const { error } = await supabase.from('vehicles').insert([vehicleData]);
-      if (error) toast.error(error.message);
-      else {
-        toast.success('Vehículo registrado');
-        fetchVehicles();
+    console.log('Sincronizando unidad con central:', vehicleData);
+
+    try {
+      if (isEditing.id === 'new') {
+        const { error } = await supabase.from('vehicles').insert([vehicleData]);
+        if (error) throw error;
+        toast.success('Vehículo registrado exitosamente');
+      } else {
+        const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', isEditing.id);
+        if (error) throw error;
+        toast.success('Registro de flotilla actualizado');
       }
-    } else {
-      const { error } = await supabase.from('vehicles').update(vehicleData).eq('id', isEditing.id);
-      if (error) toast.error(error.message);
-      else {
-        toast.success('Registro actualizado');
-        fetchVehicles();
+      setIsEditing(null);
+      fetchVehicles();
+    } catch (error: any) {
+      console.error('Error en operación de flotilla:', error);
+      if (error.code === '23503') {
+        toast.error('Error de Integridad: El chofer seleccionado ya no existe en el sistema. Por favor refresque la lista.');
+        fetchDrivers();
+      } else if (error.code === '23505') {
+        toast.error('Error: Ya existe una unidad registrada con estas placas.');
+      } else {
+        toast.error('No se pudo guardar: ' + error.message);
       }
     }
-    setIsEditing(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -488,8 +502,8 @@ export function VehicleAdmin() {
                     </div>
                 ) : (
                     <select 
-                      value={isEditing.assigned_driver_id}
-                      onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value})}
+                      value={isEditing.assigned_driver_id || ''}
+                      onChange={(e) => setIsEditing({...isEditing, assigned_driver_id: e.target.value || null})}
                       className="w-full border-b-2 border-editorial-ink/10 py-3 font-sans focus:border-editorial-ink outline-none bg-transparent"
                     >
                       <option value="">Seleccionar Chofer</option>
