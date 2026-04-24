@@ -336,13 +336,13 @@ export function VehicleAdmin() {
       return;
     }
 
-    const newId = crypto.randomUUID();
-    const { error: insErr } = await supabase.from('profiles').insert([{
-        id: newId,
+    const tempId = crypto.randomUUID();
+    const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{
+        id: tempId,
         full_name: newDriverData.full_name.trim().toUpperCase(),
         email: newDriverData.email.trim().toLowerCase(),
         role: 'driver'
-    }]);
+    }]).select().single();
 
     if (insErr) {
         if (insErr.code === '23505') {
@@ -351,10 +351,21 @@ export function VehicleAdmin() {
           toast.error('Falla al crear chofer: ' + insErr.message);
         }
     } else {
-        toast.success('Chofer dado de alta. Sincronizando catálogo...');
-        await fetchDrivers();
+        const realId = inserted?.id || tempId;
+        const driverName = newDriverData.full_name.trim().toUpperCase();
+        
+        toast.success(`Chofer ${driverName} registrado`);
+        
+        // Actualización local inmediata del catálogo para el dropdown
+        const newDriverRecord = { id: realId, full_name: driverName };
+        setDrivers(prev => [...prev, newDriverRecord].sort((a,b) => a.full_name.localeCompare(b.full_name)));
+        
+        // Sincronizar con servidor en segundo plano
+        fetchDrivers();
+        
         if (isEditing) {
-            setIsEditing({ ...isEditing, assigned_driver_id: newId });
+            setIsEditing({ ...isEditing, assigned_driver_id: realId });
+            console.log('Asignando nuevo ID al formulario:', realId);
         }
         setIsAddingDriver(false);
         setNewDriverData({ full_name: '', email: '' });
@@ -723,12 +734,18 @@ export function DriverAdmin() {
     };
 
     if (isEditing.id === 'new') {
-      // For new users without auth, we just create the profile. 
-      // They won't be able to log in until auth is created, but they will exist in the system.
-      const { error } = await supabase.from('profiles').insert([{...updateData, id: crypto.randomUUID()}]);
-      if (error) toast.error('Error al crear: ' + error.message);
-      else {
-        toast.success('Perfil creado exitosamente');
+      const tempId = crypto.randomUUID();
+      const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{...updateData, id: tempId}]).select().single();
+      
+      if (insErr) {
+        toast.error('Error al crear: ' + insErr.message);
+      } else {
+        const realProfile = inserted || { ...updateData, id: tempId, created_at: new Date().toISOString() };
+        toast.success(`Perfil ${isEditing.full_name.toUpperCase()} creado`);
+        
+        // Optimistic update
+        setProfiles(prev => [...prev, realProfile as Profile].sort((a,b) => a.full_name.localeCompare(b.full_name)));
+        
         fetchProfiles();
         setIsEditing(null);
       }
@@ -837,34 +854,38 @@ export function DriverAdmin() {
                         
                         try {
                           // 1. Desvincular de vehículos (NULLABLE)
-                          const { error: vErr } = await supabase
+                          await supabase
                             .from('vehicles')
                             .update({ assigned_driver_id: null })
                             .eq('assigned_driver_id', p.id);
                           
-                          if (vErr) console.warn('Aviso: No se pudo desvincular de unidades:', vErr.message);
-
                           // 2. Intentar borrar perfil
-                          // Nota: Si tiene órdenes o cargas (NOT NULL FK), esto fallará con error 23503
-                          const { error: delErr } = await supabase
+                          const { error: delErr, count } = await supabase
                             .from('profiles')
-                            .delete()
+                            .delete({ count: 'exact' })
                             .eq('id', p.id);
 
                           if (delErr) {
                             if (delErr.code === '23503') {
-                              throw new Error('No se puede eliminar: Este chofer tiene historial de ventas o cargas registradas en el sistema. Considere cambiar su rol o inactivarlo.');
+                              throw new Error('Este chofer tiene historial de ventas. No puede ser borrado, solo inactivado (cambiando su rol).');
                             }
                             throw delErr;
                           }
 
-                          toast.success('Perfil eliminado exitosamente');
+                          if (count === 0) {
+                            throw new Error('No tienes permisos suficientes para eliminar este registro o ya no existe.');
+                          }
+
+                          toast.success('Perfil eliminado correctamente');
                           
-                          // 3. Forzar refresco local
+                          // 3. Forzar refresco local inmediato para evitar visualización fantasma
                           setProfiles(prev => prev.filter(item => item.id !== p.id));
-                          fetchProfiles();
+                          
+                          // Recargar de servidor
+                          await fetchProfiles();
                         } catch (error: any) {
-                          toast.error(error.message || 'Error al intentar eliminar el registro');
+                          console.error('Delete error:', error);
+                          toast.error(error.message || 'Error al intentar eliminar');
                         }
                       }} 
                       className="p-2 hover:bg-stone-100 transition-colors hover:text-red-600"
