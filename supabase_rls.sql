@@ -70,57 +70,50 @@ USING (is_admin());
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Función de administración optimizada
--- Usamos PLPGSQL y SECURITY DEFINER para que no aplique RLS dentro de la función
+-- Función de administración optimizada para evitar recursión
+-- Se usa SECURITY DEFINER para que la consulta interna no active RLS de nuevo
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 DECLARE
-  is_admin_user BOOLEAN;
+  current_role text;
 BEGIN
-  SELECT (role = 'admin') INTO is_admin_user
+  SELECT role INTO current_role
   FROM public.profiles
   WHERE id = auth.uid();
   
-  RETURN COALESCE(is_admin_user, FALSE);
+  RETURN (current_role = 'admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 1. Lectura: Todos pueden ver perfiles básicos (necesario para el front y joins)
+-- 1. Lectura: Permitir que todos los usuarios autenticados vean los perfiles
+-- Esto evita la recursión en joins y en el panel de administración
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
-CREATE POLICY "Public profiles are viewable by everyone" 
-ON public.profiles FOR SELECT 
+DROP POLICY IF EXISTS "Authenticated users can read profiles" ON public.profiles;
+CREATE POLICY "Authenticated users can read profiles"
+ON public.profiles FOR SELECT
+TO authenticated
 USING (true);
 
--- 2. Gestión: Solo el Admin puede modificar perfiles
--- IMPORTANTE: Para evitar recursión en la misma tabla 'profiles', 
--- dividimos las operaciones y evitamos usar is_admin() en SELECT si es posible.
--- Pero como ya usamos SECURITY DEFINER, debería ser seguro.
--- Sin embargo, para mayor seguridad, eliminamos cualquier política 'FOR ALL' que use is_admin()
--- y usamos permisos específicos.
-
-DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
+-- 2. Gestión: Solo el Admin puede modificar perfiles (INSERT, UPDATE, DELETE)
+DROP POLICY IF EXISTS "Admin write access" ON public.profiles;
+DROP POLICY IF EXISTS "Admin update access" ON public.profiles;
+DROP POLICY IF EXISTS "Admin delete access" ON public.profiles;
 DROP POLICY IF EXISTS "Admins manages everything" ON public.profiles;
-DROP POLICY IF EXISTS "Admins manage profiles" ON public.profiles;
 
--- Política para operaciones de escritura (INSERT, UPDATE, DELETE)
--- Solo se aplican a usuarios que ya tienen el rol admin en la DB
-CREATE POLICY "Admin write access" 
+CREATE POLICY "Admins can write profiles" 
 ON public.profiles FOR INSERT 
+TO authenticated
 WITH CHECK (is_admin());
 
-CREATE POLICY "Admin update access" 
+CREATE POLICY "Admins can update profiles" 
 ON public.profiles FOR UPDATE 
-USING (is_admin());
+TO authenticated
+USING (is_admin() OR auth.uid() = id);
 
-CREATE POLICY "Admin delete access" 
+CREATE POLICY "Admins can delete profiles" 
 ON public.profiles FOR DELETE 
+TO authenticated
 USING (is_admin());
-
--- Permitir que CUALQUIER usuario pueda actualizar su PROPIO perfil (full_name por ejemplo)
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile"
-ON public.profiles FOR UPDATE
-USING (auth.uid() = id);
 
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;

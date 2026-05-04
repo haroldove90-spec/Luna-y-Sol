@@ -901,21 +901,33 @@ export function DriverAdmin() {
         if (authErr) throw authErr;
 
         if (authData.user) {
-          // 2. Asegurar que el perfil existe (a veces el trigger de DB tarda un poco)
-          // Intentamos actualizar el perfil recién creado por el trigger
+          // 2. Asegurar que el perfil se actualice correctamente
+          // A veces el trigger de Supabase crea el perfil con valores por defecto (role 'driver' o vacío)
+          // Forzamos la actualización con los datos que queremos (rol específico)
           const { error: profErr } = await supabase
             .from('profiles')
-            .update(updateData)
+            .update({
+              full_name: isEditing.full_name,
+              role: isEditing.role,
+              email: isEditing.email
+            })
             .eq('id', authData.user.id);
 
           if (profErr) {
-             // Si el trigger no lo creó aún, lo insertamos manualmente
-             await supabase.from('profiles').insert([{ ...updateData, id: authData.user.id }]);
+             console.log('Profile update failed, trying manual insert:', profErr);
+             // Si el update falló (quizás el trigger no ha corrido), intentamos insert
+             await supabase.from('profiles').upsert([{ 
+               id: authData.user.id,
+               full_name: isEditing.full_name,
+               role: isEditing.role,
+               email: isEditing.email
+             }]);
           }
 
           toast.success(`Chofer ${isEditing.full_name.toUpperCase()} registrado con éxito`);
           setIsEditing(null);
-          fetchProfiles();
+          // Pequeño delay para que Supabase termine de propagar los cambios antes de recargar
+          setTimeout(() => fetchProfiles(), 500);
         }
       } else {
         const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
