@@ -12,7 +12,9 @@ import {
   MapPin,
   DollarSign,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -92,30 +94,76 @@ export function ProductAdmin() {
     e.preventDefault();
     if (!isEditing) return;
     
+    setLoading(true);
     const productData = {
       sku: isEditing.sku,
       name: isEditing.name,
       price: isEditing.price,
       unit: isEditing.unit,
-      category: isEditing.category
+      category: isEditing.category,
+      image_url: isEditing.image_url
     };
 
-    if (isEditing.id === 'new') {
-      const { error } = await supabase.from('products').insert([productData]);
-      if (error) toast.error('Error al crear producto: ' + error.message);
-      else {
+    try {
+      if (isEditing.id === 'new') {
+        const { error } = await supabase.from('products').insert([productData]);
+        if (error) throw error;
         toast.success('Producto creado');
-        fetchProducts();
-      }
-    } else {
-      const { error } = await supabase.from('products').update(productData).eq('id', isEditing.id);
-      if (error) toast.error('Error al actualizar producto: ' + error.message);
-      else {
+      } else {
+        const { error } = await supabase.from('products').update(productData).eq('id', isEditing.id);
+        if (error) throw error;
         toast.success('Producto actualizado');
-        fetchProducts();
       }
+      fetchProducts();
+      setIsEditing(null);
+    } catch (error: any) {
+      toast.error('Error al guardar: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-    setIsEditing(null);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isEditing) return;
+
+    // Validar tipo y tamaño
+    if (!file.type.startsWith('image/')) {
+      toast.error('El archivo debe ser una imagen');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 2MB');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      // Intentar subir al bucket 'product-images'
+      // Nota: Si el bucket no existe, esta operación fallará silenciosamente o con error 404
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      setIsEditing({ ...isEditing, image_url: publicUrl });
+      toast.success('Fotografía cargada');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error('Error al subir: Asegúrese de que el bucket "product-images" exista en Supabase.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -136,7 +184,7 @@ export function ProductAdmin() {
           <p className="text-4xl font-sans mt-2">Productos y Precios</p>
         </div>
         <button 
-          onClick={() => setIsEditing({ id: 'new', sku: '', name: '', price: 0, unit: 'PZA', category: '' })}
+          onClick={() => setIsEditing({ id: 'new', sku: '', name: '', price: 0, unit: 'PZA', category: '', image_url: '' })}
           className="flex items-center gap-3 px-6 py-3 bg-editorial-ink text-white text-[10px] font-bold uppercase tracking-widest"
         >
           <Plus size={16} /> NUEVO PRODUCTO
@@ -170,7 +218,18 @@ export function ProductAdmin() {
             <tbody className="text-xs">
               {filtered.map(p => (
                 <tr key={p.id} className="border-b border-editorial-ink/5 hover:bg-stone-50 transition-colors">
-                  <td className="p-4 font-bold uppercase tracking-wider">{p.name}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-4">
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-10 h-10 object-cover border border-editorial-ink/10" />
+                      ) : (
+                        <div className="w-10 h-10 bg-stone-100 flex items-center justify-center border border-editorial-ink/5">
+                          <ImageIcon size={16} className="opacity-20" />
+                        </div>
+                      )}
+                      <span className="font-bold uppercase tracking-wider">{p.name}</span>
+                    </div>
+                  </td>
                   <td className="p-4 italic opacity-60">{p.category}</td>
                   <td className="p-4 font-mono">{p.unit}</td>
                   <td className="p-4 text-right font-serif italic text-lg">${p.price.toFixed(2)}</td>
@@ -191,10 +250,19 @@ export function ProductAdmin() {
         <div className="md:hidden divide-y divide-editorial-ink/10">
           {filtered.map(p => (
             <div key={p.id} className="p-6 space-y-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider">{p.name}</p>
-                  <p className="text-[10px] italic opacity-60">{p.category}</p>
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex gap-4">
+                   {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="w-16 h-16 object-cover border border-editorial-ink/10" />
+                  ) : (
+                    <div className="w-16 h-16 bg-stone-100 flex items-center justify-center border border-editorial-ink/5">
+                      <ImageIcon size={20} className="opacity-20" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider">{p.name}</p>
+                    <p className="text-[10px] italic opacity-60">{p.category}</p>
+                  </div>
                 </div>
                 <p className="text-lg font-serif italic font-bold">${p.price.toFixed(2)}</p>
               </div>
@@ -216,6 +284,66 @@ export function ProductAdmin() {
           <div className="bg-white border-2 border-editorial-ink w-full max-w-lg p-10 animate-in zoom-in-95 duration-300">
             <h4 className="text-2xl font-serif italic mb-8">Editar Registro</h4>
             <form onSubmit={handleSave} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Fotografía del Producto</label>
+                <div className="flex gap-4 items-center">
+                  {isEditing.image_url ? (
+                    <div className="relative group">
+                      <img src={isEditing.image_url} alt="Producto" className="w-24 h-24 object-cover border border-editorial-ink/10" />
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditing({...isEditing, image_url: ''})}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:scale-110 transition-transform"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-24 h-24 border-2 border-dashed border-stone-200 flex flex-col items-center justify-center cursor-pointer hover:border-editorial-ink/30 transition-colors bg-stone-50 group">
+                      <Camera size={24} className="opacity-20 group-hover:opacity-40 transition-opacity" />
+                      <span className="text-[8px] font-bold mt-2 opacity-30">SUBIR FOTO</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleImageUpload}
+                        disabled={loading}
+                      />
+                    </label>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <p className="text-[9px] opacity-40 italic">Recomendado: Imagen cuadrada, max 2MB. O pegue el URL abajo:</p>
+                    <input 
+                      placeholder="URL de imagen externa (opcional)"
+                      value={isEditing.image_url || ''}
+                      onChange={(e) => setIsEditing({...isEditing, image_url: e.target.value})}
+                      className="w-full border-b border-editorial-ink/10 py-1 text-[10px] font-mono focus:border-editorial-ink outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Nombre del Producto</label>
+                  <input 
+                    required
+                    value={isEditing.name}
+                    onChange={(e) => setIsEditing({...isEditing, name: e.target.value})}
+                    className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Categoría</label>
+                  <input 
+                    required
+                    value={isEditing.category}
+                    onChange={(e) => setIsEditing({...isEditing, category: e.target.value})}
+                    className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-6">
                 <div className="col-span-1 space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Código / SKU</label>
@@ -226,17 +354,6 @@ export function ProductAdmin() {
                     className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono uppercase tracking-wider focus:border-editorial-ink outline-none"
                   />
                 </div>
-                <div className="col-span-2 space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Nombre del Producto</label>
-                  <input 
-                    required
-                    value={isEditing.name}
-                    onChange={(e) => setIsEditing({...isEditing, name: e.target.value})}
-                    className="w-full border-b-2 border-editorial-ink/10 py-2 font-bold uppercase tracking-wider focus:border-editorial-ink outline-none"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Precio Unitario ($)</label>
                   <input 

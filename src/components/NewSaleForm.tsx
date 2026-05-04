@@ -25,7 +25,8 @@ import {
   Printer, 
   MapPin, 
   Navigation, 
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -54,6 +55,8 @@ interface Product {
   name: string;
   price: number;
   truckStock: number;
+  image_url?: string;
+  category?: string;
 }
 
 interface Customer {
@@ -675,14 +678,23 @@ export default function NewSaleForm({ driverId, isAdmin, onCancel, onSuccess }: 
               const inCart = cart.find(item => item.id === p.id);
               return (
                 <div key={p.id} className="flex items-center justify-between p-4 bg-white border border-editorial-ink/5">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-bold uppercase tracking-tighter">{p.name}</p>
-                    <div className="flex gap-4 mt-1">
-                      <p className="text-[9px] font-mono opacity-40">SKU: {p.sku}</p>
-                      <p className={cn(
-                        "text-[9px] font-bold uppercase tracking-widest",
-                        p.truckStock <= 5 ? "text-red-500" : "text-stone-400"
-                      )}>Stock: {p.truckStock}</p>
+                  <div className="flex items-center gap-4 flex-1">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover border border-editorial-ink/10" />
+                    ) : (
+                      <div className="w-12 h-12 bg-stone-100 flex items-center justify-center border border-editorial-ink/10">
+                        <ImageIcon size={20} className="opacity-20" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-[11px] font-bold uppercase tracking-tighter">{p.name}</p>
+                      <div className="flex gap-4 mt-1">
+                        <p className="text-[9px] font-mono opacity-40">SKU: {p.sku}</p>
+                        <p className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest",
+                          p.truckStock <= 5 ? "text-red-500" : "text-stone-400"
+                        )}>Stock: {p.truckStock}</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

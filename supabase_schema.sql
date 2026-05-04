@@ -32,7 +32,10 @@ CREATE TABLE products (
     name TEXT NOT NULL,
     description TEXT,
     category TEXT,
-    unit_price DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    unit TEXT DEFAULT 'PZA',
+    image_url TEXT,
+    price DECIMAL(12, 2) NOT NULL DEFAULT 0.00, -- Mantener 'price' para consistencia con el código actual
+    unit_price DECIMAL(12, 2) NOT NULL DEFAULT 0.00, -- Alias para compatibilidad externa
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
