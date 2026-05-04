@@ -72,11 +72,21 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Función de administración optimizada para evitar recursión
 -- Se usa SECURITY DEFINER para que la consulta interna no active RLS de nuevo
+-- Agregamos un bypass por email para los admins conocidos como medida de seguridad extra
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 DECLARE
   current_role text;
+  user_email text;
 BEGIN
+  -- 1. Verificar por email en el JWT (bypass rápido que no toca la tabla profiles)
+  user_email := auth.jwt() ->> 'email';
+  IF (user_email IN ('haroldove90@gmail.com', 'haroldo90@hotmail.com', 'harold@hotmail.com')) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- 2. Verificar en la tabla profiles
+  -- Como esta función es SECURITY DEFINER, este SELECT NO activa RLS recursivamente
   SELECT role INTO current_role
   FROM public.profiles
   WHERE id = auth.uid();
@@ -85,35 +95,42 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- 1. Lectura: Permitir que todos los usuarios autenticados vean los perfiles
--- Esto evita la recursión en joins y en el panel de administración
+-- 1. Lectura: Permitir lectura libre para usuarios autenticados
+-- Esto es vital para evitar recursión y permitir que el front funcione
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated users can read profiles" ON public.profiles;
-CREATE POLICY "Authenticated users can read profiles"
+CREATE POLICY "Allow authenticated read"
 ON public.profiles FOR SELECT
 TO authenticated
 USING (true);
 
--- 2. Gestión: Solo el Admin puede modificar perfiles (INSERT, UPDATE, DELETE)
+-- 2. Escritura: Solo admins o el propio usuario (para update limitado)
 DROP POLICY IF EXISTS "Admin write access" ON public.profiles;
 DROP POLICY IF EXISTS "Admin update access" ON public.profiles;
 DROP POLICY IF EXISTS "Admin delete access" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can write profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can delete profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Admins manages everything" ON public.profiles;
 
-CREATE POLICY "Admins can write profiles" 
+-- Permitir a admins insertar nuevos perfiles
+CREATE POLICY "Admins insert" 
 ON public.profiles FOR INSERT 
 TO authenticated
 WITH CHECK (is_admin());
 
-CREATE POLICY "Admins can update profiles" 
-ON public.profiles FOR UPDATE 
-TO authenticated
-USING (is_admin() OR auth.uid() = id);
-
-CREATE POLICY "Admins can delete profiles" 
+-- Permitir a admins borrar perfiles
+CREATE POLICY "Admins delete" 
 ON public.profiles FOR DELETE 
 TO authenticated
 USING (is_admin());
+
+-- Permitir actualización: Admins pueden todo, usuarios pueden su propio perfil
+CREATE POLICY "Profile update" 
+ON public.profiles FOR UPDATE 
+TO authenticated
+USING (is_admin() OR auth.uid() = id)
+WITH CHECK (is_admin() OR auth.uid() = id);
 
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;

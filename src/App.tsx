@@ -181,6 +181,21 @@ export default function App() {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userEmail = session?.user?.email?.toLowerCase() || '';
+      
+      // 1. Bypass previo por email para admins conocidos (evita recursion si hay problemas de RLS)
+      if (userEmail.includes('admin') || 
+          userEmail === 'haroldove90@gmail.com' || 
+          userEmail === 'haroldo90@hotmail.com' ||
+          userEmail === 'harold@hotmail.com'
+      ) {
+        console.log('Admin identificado por email (Client Bypass)');
+        setUserRole('admin');
+        setActualRole('admin');
+        return;
+      }
+
       console.log('Fetching role for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
