@@ -70,39 +70,57 @@ USING (is_admin());
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Evitar recursión: El admin puede ver todo sin llamar a is_admin() dentro de la misma tabla si es posible,
--- o simplificar la política.
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
+-- Función de administración optimizada
+-- Usamos PLPGSQL y SECURITY DEFINER para que no aplique RLS dentro de la función
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+DECLARE
+  is_admin_user BOOLEAN;
+BEGIN
+  SELECT (role = 'admin') INTO is_admin_user
+  FROM public.profiles
+  WHERE id = auth.uid();
+  
+  RETURN COALESCE(is_admin_user, FALSE);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- 1. Lectura: Todos pueden ver perfiles básicos (necesario para el front y joins)
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
 USING (true);
 
--- Admin control TOTAL
--- Usamos una verificación directa del UID para el admin principal y evitamos recursión
-DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
-CREATE POLICY "Admins have full access to profiles" 
-ON public.profiles FOR ALL 
-USING (
-  auth.uid() IN (
-    '9c68d387-57f0-4b26-8966-bec21d4f5d41', -- Tu UID de admin actual
-    'd83f47e3-547a-4c2d-9b1e-3a8e9f2c1b0a'  -- (Ejemplo de otro posible admin)
-  )
-  OR 
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
-);
+-- 2. Gestión: Solo el Admin puede modificar perfiles
+-- IMPORTANTE: Para evitar recursión en la misma tabla 'profiles', 
+-- dividimos las operaciones y evitamos usar is_admin() en SELECT si es posible.
+-- Pero como ya usamos SECURITY DEFINER, debería ser seguro.
+-- Sin embargo, para mayor seguridad, eliminamos cualquier política 'FOR ALL' que use is_admin()
+-- y usamos permisos específicos.
 
--- Nota: La política de arriba sigue siendo un poco arriesgada para recursión. 
--- La mejor forma es usar una política que no use SELECT en la misma tabla para el chequeo de permisos de escritura.
 DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
-CREATE POLICY "Admins manage profiles" 
-ON public.profiles FOR ALL
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
--- Para evitar el bucle, dividiremos:
+DROP POLICY IF EXISTS "Admins manages everything" ON public.profiles;
 DROP POLICY IF EXISTS "Admins manage profiles" ON public.profiles;
-CREATE POLICY "Admins select profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Admins insert profiles" ON public.profiles FOR INSERT WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
-CREATE POLICY "Admins update profiles" ON public.profiles FOR UPDATE USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
-CREATE POLICY "Admins delete profiles" ON public.profiles FOR DELETE USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+
+-- Política para operaciones de escritura (INSERT, UPDATE, DELETE)
+-- Solo se aplican a usuarios que ya tienen el rol admin en la DB
+CREATE POLICY "Admin write access" 
+ON public.profiles FOR INSERT 
+WITH CHECK (is_admin());
+
+CREATE POLICY "Admin update access" 
+ON public.profiles FOR UPDATE 
+USING (is_admin());
+
+CREATE POLICY "Admin delete access" 
+ON public.profiles FOR DELETE 
+USING (is_admin());
+
+-- Permitir que CUALQUIER usuario pueda actualizar su PROPIO perfil (full_name por ejemplo)
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile"
+ON public.profiles FOR UPDATE
+USING (auth.uid() = id);
 
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;

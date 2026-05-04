@@ -791,17 +791,29 @@ export function DriverAdmin() {
 
   const fetchProfiles = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name');
-    
-    if (error) {
-      toast.error('Error al cargar usuarios: ' + error.message);
-    } else {
-      setProfiles(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, created_at')
+        .order('full_name');
+      
+      if (error) {
+        if (error.message.includes('recursion')) {
+          toast.error('Error de Seguridad (Recursión detectada)', {
+            description: 'Por favor actualiza las políticas RLS en Supabase usando el archivo supabase_rls.sql'
+          });
+        } else {
+          toast.error('Error al cargar usuarios: ' + error.message);
+        }
+      } else {
+        setProfiles(data || []);
+      }
+    } catch (err: any) {
+      console.error('Error fetching profiles:', err);
+      toast.error('Error de conexión al cargar personal');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDeleteProfile = async (profile: Profile) => {
