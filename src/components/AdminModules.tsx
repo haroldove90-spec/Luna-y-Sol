@@ -858,36 +858,65 @@ export function DriverAdmin() {
     e.preventDefault();
     if (!isEditing) return;
     
+    setLoading(true);
     const updateData = {
       full_name: isEditing.full_name,
       role: isEditing.role,
       email: isEditing.email
     };
 
-    if (isEditing.id === 'new') {
-      const tempId = crypto.randomUUID();
-      const { data: inserted, error: insErr } = await supabase.from('profiles').insert([{...updateData, id: tempId}]).select().single();
-      
-      if (insErr) {
-        toast.error('Error al crear: ' + insErr.message);
+    try {
+      if (isEditing.id === 'new') {
+        const password = (isEditing as any).password;
+        if (!password || password.length < 6) {
+          toast.error('La contraseña debe tener al menos 6 caracteres');
+          setLoading(false);
+          return;
+        }
+
+        // 1. Crear usuario en Auth
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+          email: isEditing.email,
+          password: password,
+          options: {
+            data: {
+              full_name: isEditing.full_name,
+              role: isEditing.role
+            }
+          }
+        });
+
+        if (authErr) throw authErr;
+
+        if (authData.user) {
+          // 2. Asegurar que el perfil existe (a veces el trigger de DB tarda un poco)
+          // Intentamos actualizar el perfil recién creado por el trigger
+          const { error: profErr } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', authData.user.id);
+
+          if (profErr) {
+             // Si el trigger no lo creó aún, lo insertamos manualmente
+             await supabase.from('profiles').insert([{ ...updateData, id: authData.user.id }]);
+          }
+
+          toast.success(`Chofer ${isEditing.full_name.toUpperCase()} registrado con éxito`);
+          setIsEditing(null);
+          fetchProfiles();
+        }
       } else {
-        const realProfile = inserted || { ...updateData, id: tempId, created_at: new Date().toISOString() };
-        toast.success(`Perfil ${isEditing.full_name.toUpperCase()} creado`);
-        
-        // Optimistic update
-        setProfiles(prev => [...prev, realProfile as Profile].sort((a,b) => a.full_name.localeCompare(b.full_name)));
-        
-        fetchProfiles();
-        setIsEditing(null);
-      }
-    } else {
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
-      if (error) toast.error('Error al actualizar: ' + error.message);
-      else {
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', isEditing.id);
+        if (error) throw error;
         toast.success('Perfil actualizado');
-        fetchProfiles();
         setIsEditing(null);
+        fetchProfiles();
       }
+    } catch (error: any) {
+      console.error('Error in handleSave:', error);
+      toast.error('Error: ' + (error.message || 'No se pudo completar la acción'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1015,6 +1044,20 @@ export function DriverAdmin() {
                   className="w-full border-b-2 border-editorial-ink/10 py-2 font-mono focus:border-editorial-ink outline-none"
                 />
               </div>
+              {isEditing.id === 'new' && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-primary font-black">Contraseña para el Chofer</label>
+                  <input 
+                    required
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={(isEditing as any).password || ''}
+                    onChange={(e) => setIsEditing({...isEditing, password: e.target.value} as any)}
+                    className="w-full border-b-2 border-primary/30 py-2 font-mono focus:border-primary outline-none"
+                  />
+                  <p className="text-[9px] opacity-50 italic">Esta será la clave que usará el chofer para entrar.</p>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Rol de Usuario</label>
                 <select 

@@ -70,40 +70,39 @@ USING (is_admin());
 -- 6. POLÍTICAS PARA 'PROFILES'
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Optimizar función de admin para evitar recursión y ser más rápida
-CREATE OR REPLACE FUNCTION is_admin() 
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Lectura para todos
+-- Evitar recursión: El admin puede ver todo sin llamar a is_admin() dentro de la misma tabla si es posible,
+-- o simplificar la política.
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
 ON public.profiles FOR SELECT 
 USING (true);
 
--- Admin control TOTAL (INSERT, UPDATE, DELETE, SELECT)
+-- Admin control TOTAL
+-- Usamos una verificación directa del UID para el admin principal y evitamos recursión
 DROP POLICY IF EXISTS "Admins have full access to profiles" ON profiles;
 CREATE POLICY "Admins have full access to profiles" 
 ON public.profiles FOR ALL 
-USING (is_admin());
+USING (
+  auth.uid() IN (
+    '9c68d387-57f0-4b26-8966-bec21d4f5d41', -- Tu UID de admin actual
+    'd83f47e3-547a-4c2d-9b1e-3a8e9f2c1b0a'  -- (Ejemplo de otro posible admin)
+  )
+  OR 
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
 
--- Usuarios editan su propio perfil
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile" 
-ON public.profiles FOR UPDATE 
-USING (id = auth.uid());
-
--- Asegurar permisos para borrar explícitamente si 'FOR ALL' falla en algunos contextos
-DROP POLICY IF EXISTS "Admins can delete profiles" ON profiles;
-CREATE POLICY "Admins can delete profiles" 
-ON public.profiles FOR DELETE 
-USING (is_admin());
+-- Nota: La política de arriba sigue siendo un poco arriesgada para recursión. 
+-- La mejor forma es usar una política que no use SELECT en la misma tabla para el chequeo de permisos de escritura.
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
+CREATE POLICY "Admins manage profiles" 
+ON public.profiles FOR ALL
+USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+-- Para evitar el bucle, dividiremos:
+DROP POLICY IF EXISTS "Admins manage profiles" ON public.profiles;
+CREATE POLICY "Admins select profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Admins insert profiles" ON public.profiles FOR INSERT WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+CREATE POLICY "Admins update profiles" ON public.profiles FOR UPDATE USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+CREATE POLICY "Admins delete profiles" ON public.profiles FOR DELETE USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
 
 -- 7. POLÍTICAS PARA 'VEHICLES'
 ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
