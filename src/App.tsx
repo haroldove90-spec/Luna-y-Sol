@@ -211,7 +211,11 @@ export default function App() {
         const userEmail = session?.user?.email?.toLowerCase() || '';
         
         // Hardcoded admin fallbacks for security/recovery
-        if (userEmail.includes('admin') || userEmail === 'haroldove90@gmail.com') {
+        if (userEmail.includes('admin') || 
+            userEmail === 'haroldove90@gmail.com' || 
+            userEmail === 'haroldo90@hotmail.com' ||
+            userEmail === 'harold@hotmail.com'
+        ) {
           console.log('Admin identified by email fallback');
           setUserRole('admin');
           setActualRole('admin');
