@@ -133,8 +133,8 @@ export function ProductAdmin() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('La imagen no debe superar los 2MB');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5MB');
       return;
     }
 
@@ -312,7 +312,7 @@ export function ProductAdmin() {
                     </label>
                   )}
                   <div className="flex-1 space-y-2">
-                    <p className="text-[9px] opacity-40 italic">Recomendado: Imagen cuadrada, max 2MB. O pegue el URL abajo:</p>
+                    <p className="text-[9px] opacity-40 italic">Recomendado: Imagen cuadrada, max 5MB. O pegue el URL abajo:</p>
                     <input 
                       placeholder="URL de imagen externa (opcional)"
                       value={isEditing.image_url || ''}
